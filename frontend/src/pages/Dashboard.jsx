@@ -1020,7 +1020,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
-            Ladle Closing Intelligence Center
+            Ladle Moulding Intelligence Center
           </h1>
           <p className="text-slate-400 text-sm mt-1">
             Real-time digital record scanning, secure cloud data storage, and process quality analytics.
@@ -1063,7 +1063,7 @@ export default function Dashboard() {
                   <h2 className="text-lg font-bold text-slate-100">Intelligent Industrial Ingestor</h2>
                 </div>
                 <p className="text-slate-400 text-xs mb-6 leading-relaxed">
-                  Upload a handwritten or printed <strong>Ladle Closing Record (PDF/JPG/PNG)</strong>. The system will read, align, and extract the data automatically.
+                  Upload a handwritten or printed <strong>Ladle Moulding Record (PDF/JPG/PNG)</strong>. The system will read, align, and extract the data automatically.
                 </p>
                 <div
                   onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
