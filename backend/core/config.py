@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Database Settings
     MONGO_URI: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URI")
-    MONGO_DB_NAME: str = "industrial_ocr"
+    MONGO_DB_NAME: str = Field(default="industrial_ocr", validation_alias="DB_NAME")
     STATELESS_MODE: bool = False
 
     # 1. ADD THIS PROPERTY: Helps your frontend/backend consistency

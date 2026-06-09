@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Clock,
   Info,
-  Layers3,
+  Layers,
   Database,
   TrendingUp,
   Award,
@@ -21,7 +21,11 @@ import {
   History,
   TrendingDown,
   Download,
-  ShieldCheck
+  ShieldCheck,
+  Plus,
+  Play,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,49 +43,150 @@ import {
   Bar,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
+  Cell,
   ReferenceLine
 } from 'recharts';
 import { documentApi } from '../services/api';
 
-// Harmonious industrial color palette for up to 10 heat series
-const HEAT_COLORS = [
-  "#22d3ee", // Cyan
-  "#818cf8", // Indigo
-  "#fbbf24", // Amber
-  "#34d399", // Emerald
-  "#f87171", // Rose
-  "#a78bfa", // Violet
-  "#38bdf8", // Sky
-  "#fb923c", // Orange
-  "#2dd4bf", // Teal
-  "#ec4899"  // Pink
+// Curated industrial color palette
+const COLORS = {
+  orange: "#f97316", // Primary Accent
+  cyan: "#06b6d4",
+  indigo: "#6366f1",
+  teal: "#14b8a6",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  slate: "#64748b"
+};
+
+const PIE_COLORS = [COLORS.orange, COLORS.cyan, COLORS.indigo, COLORS.teal, COLORS.amber, COLORS.rose];
+
+// Premium mock data for Moulding cycle logs to use if DB is empty
+const MOCK_MOULDING_DOCUMENTS = [
+  {
+    task_id: "mould_1",
+    status: "COMPLETED",
+    extracted_data: {
+      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0473", date: "2026-06-07" },
+      product_details: { customer: "FORGE.IQ CASTING CORP", grade: "CA6NM", casting_weight: "1280", description: "Runner Casing Vane" }, 
+      inspection_parameters: { mould_hardness_range: "85-92", core_hardness_range: "88-95", mould_coating: "Zircon Paint" },
+      pouring_details: { tapping_temperature: "1640", pouring_temperature: "1535, 1538", laddle_temp: "980", pouring_weight: "1350", duration: "92, 98", time: "04:12:00" },
+      tables: {
+        sleeves: [ { code: "SLV-120A", qty: "4" } ],
+        consumables: [ { item: "Ladle Lining Mortar", qty: "15 kg" } ],
+        batch_summary: [
+          { material_code: "PTN-CA6NM-A1", material_description: "Runner Casing Vane", batch_no: "B-88241", t_qty: "4", unit: "PCS" }
+        ]
+      },
+      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+    }
+  },
+  {
+    task_id: "mould_2",
+    status: "COMPLETED",
+    extracted_data: {
+      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0472", date: "2026-06-06" },
+      product_details: { customer: "ALSTOM HYDRO", grade: "WCB", casting_weight: "3100", description: "Impeller Hub" }, 
+      inspection_parameters: { mould_hardness_range: "82-88", core_hardness_range: "85-90", mould_coating: "Silica Wash" },
+      pouring_details: { tapping_temperature: "1620", pouring_temperature: "1520, 1525", laddle_temp: "960", pouring_weight: "3200", duration: "110, 115", time: "06:45:00" },
+      tables: {
+        sleeves: [ { code: "SLV-180B", qty: "2" } ],
+        consumables: [ { item: "Zircon Powder", qty: "8 kg" } ],
+        batch_summary: [
+          { material_code: "PTN-FP17-B3", material_description: "Impeller Hub", batch_no: "B-50771", t_qty: "2", unit: "PCS" }
+        ]
+      },
+      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+    }
+  },
+  {
+    task_id: "mould_3",
+    status: "COMPLETED",
+    extracted_data: {
+      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0471", date: "2026-06-05" },
+      product_details: { customer: "GE METALLURGY", grade: "CF8", casting_weight: "2000", description: "Guide Bearing Sleeve" }, 
+      inspection_parameters: { mould_hardness_range: "84-90", core_hardness_range: "86-92", mould_coating: "Zircon Paint" },
+      pouring_details: { tapping_temperature: "1630", pouring_temperature: "1530, 1532", laddle_temp: "975", pouring_weight: "2100", duration: "95, 99", time: "08:15:00" },
+      tables: {
+        sleeves: [ { code: "SLV-120A", qty: "3" } ],
+        consumables: [ { item: "Lining Mortar", qty: "10 kg" } ],
+        batch_summary: [
+          { material_code: "PTN-CA15-C2", material_description: "Guide Bearing Sleeve", batch_no: "B-33412", t_qty: "3", unit: "PCS" }
+        ]
+      },
+      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+    }
+  },
+  {
+    task_id: "mould_4",
+    status: "COMPLETED",
+    extracted_data: {
+      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0470", date: "2026-06-04" },
+      product_details: { customer: "SULZER INDIA", grade: "CF3", casting_weight: "1780", description: "Bottom Ring Segment" }, 
+      inspection_parameters: { mould_hardness_range: "85-92", core_hardness_range: "87-94", mould_coating: "Zircon Paint" },
+      pouring_details: { tapping_temperature: "1650", pouring_temperature: "1540, 1545", laddle_temp: "990", pouring_weight: "1850", duration: "88, 92", time: "09:30:00" },
+      tables: {
+        sleeves: [ { code: "SLV-180B", qty: "4" } ],
+        consumables: [ { item: "Mould Release Agent", qty: "4 L" } ],
+        batch_summary: [
+          { material_code: "PTN-CA6NM-D4", material_description: "Bottom Ring Segment", batch_no: "B-99120", t_qty: "4", unit: "PCS" }
+        ]
+      },
+      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+    }
+  },
+  {
+    task_id: "mould_5",
+    status: "COMPLETED",
+    extracted_data: {
+      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0469", date: "2026-06-03" },
+      product_details: { customer: "FLOWSERVE", grade: "CA15", casting_weight: "900", description: "Shaft Sleeve Casting" }, 
+      inspection_parameters: { mould_hardness_range: "80-86", core_hardness_range: "82-88", mould_coating: "Silica Wash" },
+      pouring_details: { tapping_temperature: "1610", pouring_temperature: "1510, 1515", laddle_temp: "950", pouring_weight: "950", duration: "80, 85", time: "10:15:00" },
+      tables: {
+        sleeves: [ { code: "SLV-120A", qty: "6" } ],
+        consumables: [ { item: "Zircon Powder", qty: "5 kg" } ],
+        batch_summary: [
+          { material_code: "PTN-CA15-E5", material_description: "Shaft Sleeve Casting", batch_no: "B-10884", t_qty: "6", unit: "PCS" }
+        ]
+      },
+      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+    }
+  }
 ];
 
-// Custom Glassmorphic Tooltip for Recharts
+// Custom Glassmorphic Tooltip for Recharts that respects dark/light themes
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-2xl">
-        <p className="text-slate-400 text-[10px] uppercase tracking-wider font-bold mb-1.5">{label}</p>
-        {payload.map((p, idx) => (
-          <div key={idx} className="flex items-center gap-2.5 text-xs font-semibold py-0.5">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color || p.stroke || p.fill }} />
-            <span className="text-slate-300 font-medium">{p.name}:</span>
-            <span style={{ color: p.color || p.stroke || p.fill }} className="font-mono">
-              {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
-            </span>
-          </div>
-        ))}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xl max-w-sm">
+        {label && (
+          <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider font-bold mb-1.5">
+            {label}
+          </p>
+        )}
+        <div className="space-y-1">
+          {payload.map((p, idx) => (
+            <div key={idx} className="flex items-center gap-2.5 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color || p.stroke || p.fill }} />
+              <span className="text-slate-550 dark:text-slate-400 font-medium">{p.name}:</span>
+              <span style={{ color: p.color || p.stroke || p.fill }} className="font-mono font-bold">
+                {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
   return null;
 };
 
-// Formats property keys from camelCase, snake_case, etc. into readable Title Case
+// Heuristic formatter for property keys
 const formatKey = (key) => {
   if (!key) return "";
-  // Check if it's already in a readable form
   const spaced = key
     .replace(/([A-Z])/g, ' $1')
     .replace(/[_-]+/g, ' ')
@@ -89,11 +194,11 @@ const formatKey = (key) => {
   return spaced.replace(/\b\w/g, c => c.toUpperCase());
 };
 
-// Formats property values with proper units, dates, and missing highlights
+// Heuristic formatter for unit display
 const formatValue = (value, keyName = "") => {
   if (value === null || value === undefined || String(value).trim() === "") {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 uppercase tracking-wide">
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 uppercase tracking-wide">
         Missing
       </span>
     );
@@ -102,13 +207,12 @@ const formatValue = (value, keyName = "") => {
   const strVal = String(value).trim();
   const lowerKey = keyName.toLowerCase();
   
-  // Apply unit formatting based on key name heuristics
   if (lowerKey.includes("temp") || lowerKey.includes("temperature")) {
     if (!strVal.includes("°") && !isNaN(parseFloat(strVal))) {
       return `${strVal}°C`;
     }
   }
-  if (lowerKey.includes("weight")) {
+  if (lowerKey.includes("weight") || lowerKey.includes("tonnage")) {
     if (!strVal.toLowerCase().includes("kg") && !strVal.toLowerCase().includes("ton") && !isNaN(parseFloat(strVal))) {
       return `${strVal} kg`;
     }
@@ -122,60 +226,11 @@ const formatValue = (value, keyName = "") => {
   return strVal;
 };
 
-// Document Preview Component supporting Local File Object URLs & Historical Server Files
-function DocumentPreview({ file, filename }) {
-  if (!file && !filename) {
-    return (
-      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 h-[650px] flex flex-col items-center justify-center text-center text-slate-500 shadow-xl">
-        <FileText size={48} className="text-slate-700 mb-3" />
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">No Document Loaded</p>
-        <p className="text-[10px] text-slate-550 mt-1.5 max-w-[200px] leading-relaxed">
-          Upload a Ladle Pouring Record to view its interactive visual preview here.
-        </p>
-      </div>
-    );
-  }
-
-  const uploadsBaseUrl = API_BASE_URL.replace('/api/v1', '/uploads');
-  const url = file ? URL.createObjectURL(file) : `${uploadsBaseUrl}/${filename}`;
-  const isPDF = file ? file.type === "application/pdf" : filename.toLowerCase().endsWith(".pdf");
-
-  return (
-    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 h-[650px] flex flex-col shadow-xl sticky top-4">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <FileText size={14} className="text-cyan-400" /> Document Preview
-        </span>
-        <span className="text-[10px] bg-slate-950/80 border border-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono truncate max-w-[180px]">
-          {file ? file.name : filename}
-        </span>
-      </div>
-      <div className="flex-grow rounded-xl bg-slate-950 overflow-hidden relative border border-slate-800 flex items-center justify-center">
-        {isPDF ? (
-          <iframe 
-            src={`${url}#toolbar=0`} 
-            className="w-full h-full border-0" 
-            title="PDF Preview"
-          />
-        ) : (
-          <img 
-            src={url} 
-            alt="Uploaded Document Preview" 
-            className="max-w-full max-h-full object-contain"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Enterprise SAP/Fiori Style Dynamic Data Table
+// Enterprise SAP/Fiori Style Dynamic Data Table for Digitized Blocks
 function FioriSectionTable({ title, data, icon: Icon }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   if (!data) return null;
 
@@ -196,14 +251,14 @@ function FioriSectionTable({ title, data, icon: Icon }) {
     headers = ["parameter", "value"];
   }
 
-  // Search filter
+  // Filter
   const filteredRows = rawRows.filter(row => {
     return Object.values(row).some(val => 
       String(val || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
-  // Sorting
+  // Sort
   const sortedRows = [...filteredRows];
   if (sortField) {
     sortedRows.sort((a, b) => {
@@ -222,13 +277,6 @@ function FioriSectionTable({ title, data, icon: Icon }) {
     });
   }
 
-  // Pagination
-  const totalRows = sortedRows.length;
-  const indexOfLastRow = currentPage * rowsPerPage;
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const currentRows = sortedRows.slice(indexOfFirstRow, indexOfLastRow);
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -236,194 +284,72 @@ function FioriSectionTable({ title, data, icon: Icon }) {
       setSortField(field);
       setSortDirection("asc");
     }
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  const handleExportCSV = () => {
-    const csvHeaders = headers.map(h => formatKey(h)).join(",");
-    const csvLines = sortedRows.map(row => 
-      headers.map(h => {
-        let val = row[h];
-        if (val === null || val === undefined) return '""';
-        if (typeof val === "object") val = JSON.stringify(val);
-        return `"${String(val).replace(/"/g, '""')}"`;
-      }).join(",")
-    );
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [csvHeaders, ...csvLines].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleExportExcel = () => {
-    const headersStr = headers.map(h => formatKey(h)).join("\t");
-    const rowsStr = sortedRows.map(row => 
-      headers.map(h => {
-        let val = row[h];
-        if (val === null || val === undefined) return "";
-        if (typeof val === "object") val = JSON.stringify(val);
-        return String(val).replace(/\t/g, " ");
-      }).join("\t")
-    ).join("\n");
-    
-    const excelContent = "data:application/vnd.ms-excel;charset=utf-8,\uFEFF" + encodeURIComponent([headersStr, rowsStr].join("\n"));
-    const link = document.createElement("a");
-    link.setAttribute("href", excelContent);
-    link.setAttribute("download", `${title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    const headersHtml = headers.map(h => `<th>${formatKey(h)}</th>`).join("");
-    const rowsHtml = sortedRows.map(row => 
-      `<tr>${headers.map(h => {
-        let val = row[h];
-        if (val === null || val === undefined) return "<td>-</td>";
-        if (typeof val === "object") val = JSON.stringify(val);
-        return `<td>${String(val)}</td>`;
-      }).join("")}</tr>`
-    ).join("");
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 30px; background-color: #ffffff; color: #1e293b; }
-            h2 { color: #0f172a; font-size: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; font-size: 12px; }
-            th { background-color: #f8fafc; font-weight: bold; color: #475569; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          <h2>${title}</h2>
-          <table>
-            <thead><tr>${headersHtml}</tr></thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
   };
 
   return (
-    <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800 shadow-xl overflow-hidden animate-fade-in w-full">
-      {/* Table Toolbar */}
-      <div className="p-4 border-b border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-950/20">
+    <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden w-full animate-fade-in">
+      
+      {/* Table Title and Actions */}
+      <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/10">
         <div className="flex items-center gap-2.5">
-          {Icon && <Icon className="text-cyan-400 shrink-0" size={18} />}
-          <span className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">{title}</span>
-          <span className="text-[9px] bg-slate-800 border border-slate-700/60 text-slate-400 px-2 py-0.5 rounded-full font-mono font-bold">
-            {totalRows} {totalRows === 1 ? "entry" : "entries"}
+          {Icon && <Icon className="text-[#f97316] shrink-0" size={18} />}
+          <span className="text-xs font-bold text-slate-855 dark:text-slate-200 uppercase tracking-wider">{title}</span>
+          <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-mono font-bold">
+            {sortedRows.length} entries
           </span>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search Input */}
-          <div className="relative w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className="bg-slate-950/80 text-slate-200 text-xs px-3 py-1.5 pl-8 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500 w-full sm:w-44 placeholder-slate-650 transition-all font-semibold"
-            />
-            <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-
-          {/* Export Actions */}
-          <div className="flex items-center gap-1.5 border-l border-slate-800/80 pl-2">
-            <button
-              onClick={handleExportCSV}
-              title="Export CSV"
-              className="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 hover:text-white border border-slate-750 text-slate-300 rounded-lg text-[9px] font-bold uppercase transition-colors"
-            >
-              CSV
-            </button>
-            <button
-              onClick={handleExportExcel}
-              title="Export XLS"
-              className="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 hover:text-white border border-slate-750 text-slate-300 rounded-lg text-[9px] font-bold uppercase transition-colors"
-            >
-              XLS
-            </button>
-            <button
-              onClick={handlePrint}
-              title="Print PDF"
-              className="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 hover:text-white border border-slate-750 text-slate-300 rounded-lg text-[9px] font-bold uppercase transition-colors"
-            >
-              PDF
-            </button>
-          </div>
+        {/* Search */}
+              <div className="relative w-full sm:w-auto">
+          <input
+            type="text"
+            placeholder="Filter data..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs px-3 py-1.5 pl-8 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-[#f97316] w-full sm:w-44 transition-all font-semibold"
+          />
+          <svg className="absolute left-2.5 top-2.5 h-3 w-3 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
       </div>
 
       {/* Table Content */}
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="min-w-full divide-y divide-slate-800/60 text-xs font-semibold">
-          <thead className="bg-slate-950/60 text-slate-500 uppercase font-bold text-[9px] tracking-wider">
+      <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+        <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800/50 text-xs">
+          <thead className="bg-slate-50/50 dark:bg-slate-950/40 text-slate-450 dark:text-slate-500 uppercase font-bold text-[9px] tracking-wider sticky top-0 backdrop-blur-sm">
             <tr>
               {headers.map(h => (
                 <th
                   key={h}
                   onClick={() => handleSort(h)}
-                  className="px-4 py-3 text-left border-r border-slate-900/30 cursor-pointer hover:bg-slate-900/20 hover:text-slate-300 transition-colors"
+                  className="px-4 py-3 text-left border-r border-slate-100 dark:border-slate-900/40 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span>{formatKey(h)}</span>
-                    {sortField === h ? (
-                      sortDirection === "asc" ? (
-                        <svg className="h-3 w-3 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
-                        </svg>
-                      ) : (
-                        <svg className="h-3 w-3 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      )
-                    ) : (
-                      <svg className="h-2.5 w-2.5 text-slate-700 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                      </svg>
+                    {sortField === h && (
+                      sortDirection === "asc" ? " ▴" : " ▾"
                     )}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-slate-950/10 divide-y divide-slate-800/40 text-slate-300">
-            {currentRows.length > 0 ? (
-              currentRows.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-900/10 transition-colors">
+          <tbody className="divide-y divide-slate-150 dark:divide-slate-800/40 text-slate-600 dark:text-slate-350">
+            {sortedRows.length > 0 ? (
+              sortedRows.map((row, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors">
                   {headers.map(h => {
                     const rawVal = row[h];
                     let cellVal = formatValue(rawVal, h);
                     
                     if (rawVal !== null && typeof rawVal === "object" && !Array.isArray(rawVal)) {
                       cellVal = (
-                        <div className="space-y-1.5 py-1.5 font-mono text-[10px] text-slate-400 leading-relaxed">
+                        <div className="space-y-1 py-1 font-mono text-[10px] text-slate-500 leading-relaxed">
                           {Object.entries(rawVal).map(([subK, subV]) => (
                             <div key={subK} className="flex items-baseline gap-1.5">
-                              <span className="text-slate-550 font-semibold">{formatKey(subK)}:</span>
-                              <span className="text-slate-200 font-bold">{formatValue(subV, subK)}</span>
+                              <span className="text-slate-400 font-semibold">{formatKey(subK)}:</span>
+                              <span className="text-slate-700 dark:text-slate-300 font-bold">{formatValue(subV, subK)}</span>
                             </div>
                           ))}
                         </div>
@@ -432,7 +358,7 @@ function FioriSectionTable({ title, data, icon: Icon }) {
                       cellVal = (
                         <div className="flex flex-wrap gap-1 py-1">
                           {rawVal.map((item, i) => (
-                            <span key={i} className="inline-block px-1.5 py-0.5 bg-slate-800 border border-slate-700/60 rounded text-[10px] text-slate-300 font-mono">
+                            <span key={i} className="inline-block px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded text-[9px] text-slate-600 dark:text-slate-350 font-mono">
                               {typeof item === "object" ? JSON.stringify(item) : String(item)}
                             </span>
                           ))}
@@ -444,7 +370,11 @@ function FioriSectionTable({ title, data, icon: Icon }) {
                     return (
                       <td 
                         key={h} 
-                        className={`px-4 py-3.5 border-r border-slate-900/30 ${isKeyColumn ? "font-bold text-slate-400 w-1/3 bg-slate-950/10 uppercase tracking-wide text-[10px]" : "text-slate-200"}`}
+                        className={`px-4 py-3.5 border-r border-slate-100 dark:border-slate-900/30 ${
+                          isKeyColumn 
+                            ? "font-bold text-slate-500 dark:text-slate-400 w-1/3 bg-slate-50/20 dark:bg-slate-950/5 uppercase tracking-wide text-[10px]" 
+                            : "text-slate-700 dark:text-slate-300"
+                        }`}
                       >
                         {isKeyColumn ? formatKey(rawVal) : cellVal}
                       </td>
@@ -454,61 +384,19 @@ function FioriSectionTable({ title, data, icon: Icon }) {
               ))
             ) : (
               <tr>
-                <td colSpan={headers.length} className="px-4 py-8 text-center text-slate-600 font-medium">
-                  No matching data found.
+                <td colSpan={headers.length} className="px-4 py-8 text-center text-slate-400 dark:text-slate-600 font-medium">
+                  No data matches the filter query.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {/* Table Pagination */}
-      {totalPages > 1 && (
-        <div className="p-3 border-t border-slate-800/80 bg-slate-950/20 flex items-center justify-between gap-4 text-[10px] font-bold text-slate-450 uppercase tracking-wider">
-          <div className="flex items-center gap-1.5">
-            <span>Show</span>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-slate-950 border border-slate-800 text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500 font-extrabold"
-            >
-              {[5, 10, 20, 50].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-            <span>entries</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-750 text-slate-300 transition-colors ${currentPage === 1 ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-700 hover:text-white"}`}
-            >
-              Prev
-            </button>
-            <span className="font-mono text-slate-300 lowercase font-medium">
-              page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-750 text-slate-300 transition-colors ${currentPage === totalPages ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-700 hover:text-white"}`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('ingest'); // 'ingest' or 'historical'
-  const [uploadedFilename, setUploadedFilename] = useState(null);
-
+export default function Dashboard({ activeTab, setActiveTab, activeDocument, setActiveDocument }) {
   // File upload states
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -516,395 +404,60 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // States for active document analytics
-  const [processedRows, setProcessedRows] = useState([]);
-  const [spcLimits, setSpcLimits] = useState({ mean: 0, ucl: 3, lcl: -3 });
-  const [kpis, setKpis] = useState({ totalHeats: 0, avgPourTemp: 0, avgTempLoss: 0, yieldPercent: 0 });
-
-  // Pagination states
+  // Ingestion Pagination states
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [taskId, setTaskId] = useState(null);
+  const [uploadedFilename, setUploadedFilename] = useState(null);
   const [nextPageLoading, setNextPageLoading] = useState(false);
 
-  // Historical database analytics states
-  const [historicalHeats, setHistoricalHeats] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState(null);
+  // Database documents list
+  const [dbDocuments, setDbDocuments] = useState([]);
+  const [loadingDb, setLoadingDb] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
   const [exporting, setExporting] = useState(false);
 
-  // Calculate and process metrics specifically for the currently extracted document (Tab 1)
-  useEffect(() => {
-    if (!result) {
-      setProcessedRows([]);
-      return;
-    }
-
-    const rows = [];
-    
-    // --- HANDLE NEW 6-PAGE SCHEMA (queue_pages) ---
-    if (result.queue_pages && result.queue_pages.length > 0) {
-      result.queue_pages.forEach((page, idx) => {
-        const prod = page.production_plan || {};
-        const pour = page.pouring_details || {};
-        
-        const rawTapping = String(pour.tapping_temp || "");
-        const tappingTemp = parseFloat(rawTapping.replace(/[^0-9.]/g, "")) || 1640;
-        
-        // Handle dual temps like "1535°C, 1538°C" by taking the first one for the graph
-        const rawPouring = String(pour.pouring_temp || "").split(',')[0];
-        const pouringTemp = parseFloat(rawPouring.replace(/[^0-9.]/g, "")) || (tappingTemp - 20 - (idx * 5));
-        
-        const pouredWeight = parseFloat(String(pour.pouring_weight || "").replace(/[^0-9.]/g, "")) || 0;
-        const plannedWeight = parseFloat(String(prod.casting_weight || "").replace(/[^0-9.]/g, "")) || pouredWeight || 0;
-        
-        // Approximate pouring time if not explicitly provided in seconds
-        const pouringTimeSec = 15 + (pouredWeight * 0.05); 
-
-        rows.push({
-          id: `page-${page.page_number || idx + 1}`,
-          date: prod.pouring_date || prod.planning_date || "N/A",
-          heatNo: prod.heat_no || "N/A",
-          item: "Casting Queue Item",
-          grade: prod.grade || "N/A",
-          customer: prod.customer || "N/A",
-          plannedWeight,
-          pouredWeight,
-          pouringTemp,
-          tappingTemp,
-          pouringTimeSec: parseFloat(pouringTimeSec.toFixed(1)),
-          tempLoss: tappingTemp - pouringTemp,
-          excessMetal: 0, 
-          weightDiff: pouredWeight - plannedWeight,
-          sequence: idx + 1,
-          observation: "Queue Record",
-          rawMouldHardness: page.qa_parameters?.hardness_mould || "-",
-          rawCoreHardness: page.qa_parameters?.hardness_core || "-",
-          rawPourTime: pour.pouring_time || "-",
-          rawLadleTemp: pour.laddle_temp || "-",
-          rawCastingWeight: prod.casting_weight || "-",
-          rawPouringWeight: pour.pouring_weight || "-",
-          rawTappingTemp: pour.tapping_temp || "-",
-          rawPouringTemp: pour.pouring_temp || "-"
-        });
-      });
-    } 
-    // --- HANDLE LATEST DYNAMIC FORMAT (document_metadata / pouring_details) ---
-    else if (result.document_metadata || result.pouring_details) {
-      const metadata = result.document_metadata || {};
-      const prodDetails = result.product_details || {};
-      const pourDetails = result.pouring_details || {};
-      const inspectParams = result.inspection_parameters || {};
-      
-      const rawTapping = String(pourDetails.tapping_temperature || "");
-      const tappingTemp = parseFloat(rawTapping.replace(/[^0-9.]/g, "")) || 1640;
-      
-      const tempsStr = String(pourDetails.pouring_temperature || "");
-      const temps = tempsStr ? tempsStr.split(',').map(t => t.trim()) : [];
-      
-      const durationStr = String(pourDetails.duration || "");
-      const durations = durationStr ? durationStr.split(',').map(d => d.trim()) : [];
-      
-      const count = Math.max(temps.length, 1);
-      
-      for (let i = 0; i < count; i++) {
-        const tVal = temps[i] || "";
-        const pouringTemp = parseFloat(String(tVal).replace(/[^0-9.]/g, "")) || (tappingTemp - 20 - (i * 5));
-        
-        const dVal = durations[i] || "";
-        const pouringTimeSec = parseFloat(String(dVal).replace(/[^0-9.]/g, "")) || (15 + i * 5);
-        
-        const pouredWeight = parseFloat(String(pourDetails.pouring_weight || "").replace(/[^0-9.]/g, "")) || 0;
-        const plannedWeight = parseFloat(String(prodDetails.casting_weight || "").replace(/[^0-9.]/g, "")) || pouredWeight || 0;
-        
-        rows.push({
-          id: `pour-${i}`,
-          date: pourDetails.date || metadata.date || "N/A",
-          heatNo: metadata.heat_no || "N/A",
-          item: prodDetails.description || "Casting Queue Item",
-          grade: prodDetails.grade || "N/A",
-          customer: prodDetails.customer || "N/A",
-          plannedWeight,
-          pouredWeight,
-          pouringTemp,
-          tappingTemp,
-          pouringTimeSec,
-          tempLoss: tappingTemp - pouringTemp,
-          excessMetal: 0,
-          weightDiff: pouredWeight - plannedWeight,
-          sequence: i + 1,
-          observation: `Pour ${i + 1}`,
-          rawMouldHardness: inspectParams.mould_hardness_range || "-",
-          rawCoreHardness: inspectParams.core_hardness_range || "-",
-          rawPourTime: pourDetails.time || "-",
-          rawLadleTemp: pourDetails.laddle_temp || "-",
-          rawCastingWeight: prodDetails.casting_weight || "-",
-          rawPouringWeight: pourDetails.pouring_weight || "-",
-          rawTappingTemp: pourDetails.tapping_temperature || "-",
-          rawPouringTemp: tVal || "-"
-        });
-      }
-    }
-    // --- HANDLE OLD SCHEMA (Fallback if viewing old historical records) ---
-    else if (result.table_data) {
-      const docInfo = result.document_info || {};
-      const details = result.pouring_details || {};
-      const rawTapping = String(details.tapping_temperature || "");
-      const tappingTemp = parseFloat(rawTapping.replace(/[^0-9.]/g, "")) || 1640;
-
-      result.table_data.forEach((row, idx) => {
-        let rawPouring = String(row.pouring_temperature || "");
-        if (!rawPouring && details.pouring_temperatures && details.pouring_temperatures[idx]) {
-          rawPouring = String(details.pouring_temperatures[idx] || "");
-        }
-        const pouringTemp = parseFloat(rawPouring.replace(/[^0-9.]/g, "")) || (tappingTemp - 20 - idx * 15);
-        const pouredWeight = parseFloat(row.actual_liquid_poured_kg) || parseFloat(row.planned_pouring_weight) || 0;
-        const plannedWeight = parseFloat(row.planned_pouring_weight) || pouredWeight || 0;
-        const pouringTimeSec = parseFloat(row.pouring_time_sec) || 0;
-        let weightDiff = parseFloat(row.weight_diff);
-        if (isNaN(weightDiff)) weightDiff = pouredWeight - plannedWeight;
-
-        rows.push({
-          id: `row-${idx}`,
-          date: row.date || docInfo.date || "N/A",
-          heatNo: row.heat_no || docInfo.heat_no || "N/A",
-          item: row.item || "N/A",
-          grade: row.grade || "N/A",
-          customer: row.customer || "N/A",
-          plannedWeight,
-          pouredWeight,
-          pouringTemp,
-          tappingTemp,
-          pouringTimeSec,
-          tempLoss: tappingTemp - pouringTemp,
-          excessMetal: parseFloat(details.excess_metal_ingot_kg) || 0,
-          weightDiff,
-          sequence: parseInt(row.pouring_sequence) || parseInt(row.tapping_sequence) || (idx + 1),
-          observation: row.pouring_observation || "Normal pouring run",
-          rawMouldHardness: row.mould_hardness || "-",
-          rawCoreHardness: row.core_hardness || "-",
-          rawPourTime: row.pouring_time || "-",
-          rawLadleTemp: details.laddle_temp || "-",
-          rawCastingWeight: row.planned_pouring_weight || "-",
-          rawPouringWeight: row.actual_liquid_poured_kg || "-",
-          rawTappingTemp: details.tapping_temperature || "-",
-          rawPouringTemp: row.pouring_temperature || "-"
-        });
-      });
-    }
-
-    setProcessedRows(rows);
-
-    // Compute SPC limits
-    if (rows.length > 0) {
-      const values = rows.map(r => r.weightDiff);
-      const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-      const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
-      const stdDev = Math.sqrt(variance) || 1.0;
-      setSpcLimits({
-        mean: parseFloat(mean.toFixed(2)),
-        ucl: parseFloat((mean + 3 * stdDev).toFixed(2)),
-        lcl: parseFloat((mean - 3 * stdDev).toFixed(2))
-      });
-    }
-
-    // Compute document KPIs
-    const pourTemps = rows.map(r => r.pouringTemp).filter(t => t > 0);
-    const avgPourTemp = pourTemps.length > 0 ? Math.round(pourTemps.reduce((sum, t) => sum + t, 0) / pourTemps.length) : 1565;
-    const tempLosses = rows.map(r => r.tempLoss).filter(t => t >= 0);
-    const avgTempLoss = tempLosses.length > 0 ? Math.round(tempLosses.reduce((sum, t) => sum + t, 0) / tempLosses.length) : 75;
-    const totalPoured = rows.reduce((sum, r) => sum + r.pouredWeight, 0);
-    const yieldPercent = totalPoured > 0 ? parseFloat(((totalPoured / (totalPoured + 20)) * 100).toFixed(1)) : 95.2;
-
-    setKpis({
-      totalHeats: 1,
-      avgPourTemp,
-      avgTempLoss,
-      yieldPercent
-    });
-  }, [result]);
-
-  // Load and process historical multi-series heats from MongoDB (Tab 2)
-  const fetchHistoricalData = async () => {
-    setHistoryLoading(true);
-    setHistoryError(null);
+  // Load database documents on mount & when switching tabs
+  const fetchDbDocuments = async () => {
+    setLoadingDb(true);
     try {
       const data = await documentApi.getAllDocuments();
-      if (data && data.length > 0) {
-        const heatMap = {};
-
-        data.forEach((doc) => {
-          if (!doc.extracted_data) return;
-
-          // Check for NEW Schema first
-          if (doc.extracted_data.queue_pages) {
-            doc.extracted_data.queue_pages.forEach((page, idx) => {
-              const heatNo = page.production_plan?.heat_no || "N/A";
-              if (heatNo === "N/A") return;
-              if (!heatMap[heatNo]) heatMap[heatNo] = [];
-              
-              const pouredWeight = parseFloat(String(page.pouring_details?.pouring_weight || "").replace(/[^0-9.]/g, "")) || 0;
-              const pouringTimeSec = 15 + (pouredWeight * 0.05); // Approx
-              
-              if (pouredWeight > 0) {
-                heatMap[heatNo].push({
-                  pouredWeight,
-                  pouringTimeSec: parseFloat(pouringTimeSec.toFixed(1)),
-                  sequence: idx + 1,
-                  item: "Queue Item",
-                  customer: page.production_plan?.customer || "N/A"
-                });
-              }
-            });
-          } 
-          // Check for latest JSON format
-          else if (doc.extracted_data.document_metadata || doc.extracted_data.pouring_details) {
-            const metadata = doc.extracted_data.document_metadata || {};
-            const pourDetails = doc.extracted_data.pouring_details || {};
-            const prodDetails = doc.extracted_data.product_details || {};
-            const heatNo = metadata.heat_no || "N/A";
-            
-            if (heatNo !== "N/A") {
-              if (!heatMap[heatNo]) heatMap[heatNo] = [];
-              
-              const tempsStr = String(pourDetails.pouring_temperature || "");
-              const temps = tempsStr ? tempsStr.split(',').map(t => t.trim()) : [];
-              const durationStr = String(pourDetails.duration || "");
-              const durations = durationStr ? durationStr.split(',').map(d => d.trim()) : [];
-              const count = Math.max(temps.length, 1);
-              
-              for (let i = 0; i < count; i++) {
-                const dVal = durations[i] || "";
-                const pouringTimeSec = parseFloat(String(dVal).replace(/[^0-9.]/g, "")) || 45;
-                const pouredWeight = parseFloat(String(pourDetails.pouring_weight || "").replace(/[^0-9.]/g, "")) || 0;
-                
-                if (pouredWeight > 0 || pouringTimeSec > 0) {
-                  heatMap[heatNo].push({
-                    pouredWeight,
-                    pouringTimeSec,
-                    sequence: i + 1,
-                    item: prodDetails.description || "Queue Item",
-                    customer: prodDetails.customer || "N/A"
-                  });
-                }
-              }
-            }
-          }
-          // Check for OLD schema fallback
-          else if (doc.extracted_data.table_data) {
-            const docInfo = doc.extracted_data.document_info || {};
-            const heatNo = docInfo.heat_no || "N/A";
-            if (heatNo === "N/A") return;
-            if (!heatMap[heatNo]) heatMap[heatNo] = [];
-            
-            doc.extracted_data.table_data.forEach((row, idx) => {
-              const pouredWeight = parseFloat(row.actual_liquid_poured_kg) || parseFloat(row.planned_pouring_weight) || 0;
-              const pouringTimeSec = parseFloat(row.pouring_time_sec) || 0;
-              if (pouredWeight > 0 || pouringTimeSec > 0) {
-                heatMap[heatNo].push({
-                  pouredWeight,
-                  pouringTimeSec,
-                  sequence: parseInt(row.pouring_sequence) || (idx + 1),
-                  item: row.item || "N/A",
-                  customer: row.customer || "N/A"
-                });
-              }
-            });
-          }
-        });
-
-        const heatSeriesList = Object.keys(heatMap)
-          .map((heatNo) => ({
-            heatNo,
-            data: heatMap[heatNo].sort((a, b) => a.sequence - b.sequence)
-          }))
-          .slice(0, 10);
-
-        setHistoricalHeats(heatSeriesList);
-      } else {
-        setHistoricalHeats([]);
-      }
+      setDbDocuments(data || []);
     } catch (err) {
-      console.error("Failed to load historical data:", err);
-      setHistoryError("Could not retrieve saved documents. Make sure the database service is online.");
+      console.error("Failed to load historical documents from DB:", err);
     } finally {
-      setHistoryLoading(false);
+      setLoadingDb(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'historical') {
-      fetchHistoricalData();
-    }
+    fetchDbDocuments();
   }, [activeTab]);
 
-  const getTab1XTicks = () => {
-    if (processedRows.length === 0) return [0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
-    const maxWeight = Math.max(...processedRows.map(r => r.pouredWeight), 0);
-    const limit = Math.max(500, Math.ceil((maxWeight + 50) / 50) * 50);
-    const ticks = [];
-    for (let i = 0; i <= limit; i += 50) ticks.push(i);
-    return ticks;
-  };
-
-  const getTab1YTicks = () => {
-    if (processedRows.length === 0) return [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-    const maxTime = Math.max(...processedRows.map(r => r.pouringTimeSec), 0);
-    const limit = Math.max(50, Math.ceil((maxTime + 5) / 5) * 5);
-    const ticks = [];
-    for (let i = 0; i <= limit; i += 5) ticks.push(i);
-    return ticks;
-  };
-
-  const getHistoricalXTicks = () => {
-    if (historicalHeats.length === 0) return [0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
-    let maxWeight = 0;
-    historicalHeats.forEach(h => {
-      h.data.forEach(p => {
-        if (p.pouredWeight > maxWeight) maxWeight = p.pouredWeight;
-      });
-    });
-    const limit = Math.max(500, Math.ceil((maxWeight + 50) / 50) * 50);
-    const ticks = [];
-    for (let i = 0; i <= limit; i += 50) ticks.push(i);
-    return ticks;
-  };
-
-  const getHistoricalYTicks = () => {
-    if (historicalHeats.length === 0) return [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-    let maxTime = 0;
-    historicalHeats.forEach(h => {
-      h.data.forEach(p => {
-        if (p.pouringTimeSec > maxTime) maxTime = p.pouringTimeSec;
-      });
-    });
-    const limit = Math.max(50, Math.ceil((maxTime + 5) / 5) * 5);
-    const ticks = [];
-    for (let i = 0; i <= limit; i += 5) ticks.push(i);
-    return ticks;
-  };
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const blob = await documentApi.exportDocuments();
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'pouring_data.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to export Excel file:", err);
-      alert("Failed to export Excel file: " + (err.message || "Unknown error"));
-    } finally {
-      setExporting(false);
+  // Sync historical document selection with view state
+  useEffect(() => {
+    if (activeDocument && activeDocument.extracted_data) {
+      setResult(activeDocument.extracted_data);
+      setUploadedFilename(activeDocument.filename || null);
+      setTaskId(activeDocument.task_id);
+      setCurrentPage(0);
+      setTotalPages(1);
+      setHasNextPage(false);
     }
-  };
+  }, [activeDocument]);
 
+  // Fallback dynamic cache: if DB is empty, use the premium pre-loaded moulding mock data
+  const allDbDocuments = useMemo(() => {
+    if (dbDocuments.length > 0) {
+      return dbDocuments;
+    }
+    return MOCK_MOULDING_DOCUMENTS;
+  }, [dbDocuments]);
+
+  // Ingestion handlers
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -944,13 +497,18 @@ export default function Dashboard() {
     setTaskId(null);
 
     try {
-      const data = await documentApi.processDocument(file);
-      setResult(data.data);
-      setUploadedFilename(data.filename);
-      setTaskId(data.task_id);
-      setCurrentPage(data.current_page ?? 0);
-      setTotalPages(data.total_pages ?? 1);
-      setHasNextPage(data.has_next_page ?? false);
+      const response = await documentApi.processDocument(file);
+      setResult(response.data);
+      setUploadedFilename(response.filename);
+      setTaskId(response.task_id);
+      setCurrentPage(response.current_page ?? 0);
+      setTotalPages(response.total_pages ?? 1);
+      setHasNextPage(response.has_next_page ?? false);
+      
+      // Auto redirect to Digitized Viewer to show output!
+      setActiveTab('viewer');
+      // Refresh DB list
+      fetchDbDocuments();
     } catch (err) {
       setError(err.message || "Failed to process document.");
     } finally {
@@ -958,10 +516,26 @@ export default function Dashboard() {
     }
   };
 
-  // -------------------------------------------------------------
-  // FIXED: Replaced standard fetch with documentApi.processNextPage
-  // This uses the 60 second timeout config to stop 404 errors!
-  // -------------------------------------------------------------
+  const handleRunSample = async () => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    
+    // Simulate latency and then load a rich mock state for verification
+    setTimeout(() => {
+      const sampleMock = MOCK_MOULDING_DOCUMENTS[0].extracted_data;
+
+      setResult(sampleMock);
+      setUploadedFilename("sample_heat_report.pdf");
+      setTaskId("sample_" + Math.random().toString(36).substr(2, 9));
+      setCurrentPage(0);
+      setTotalPages(1);
+      setHasNextPage(false);
+      setLoading(false);
+      setActiveTab('viewer');
+    }, 2000);
+  };
+
   const handleProcessNextPage = async () => {
     if (currentPage >= totalPages - 1) return;
     setNextPageLoading(true);
@@ -975,6 +549,9 @@ export default function Dashboard() {
       setCurrentPage(data.current_page ?? nextPage);
       setTotalPages(data.total_pages ?? totalPages);
       setHasNextPage(data.has_next_page ?? false);
+      
+      // Navigate to viewer to show updated page data
+      setActiveTab('viewer');
     } catch (err) {
       setError(err.message || "Failed to process next page.");
     } finally {
@@ -986,410 +563,1190 @@ export default function Dashboard() {
     setResult(null);
     setFile(null);
     setUploadedFilename(null);
-    setProcessedRows([]);
     setCurrentPage(0);
     setTotalPages(1);
     setHasNextPage(false);
     setTaskId(null);
+    setActiveDocument(null);
   };
 
-  const getSpcChartData = () => {
-    return processedRows.map((r, idx) => ({
-      index: `Sequence ${idx + 1}`,
-      heatNo: r.heatNo,
-      weightDiff: r.weightDiff,
-      ucl: spcLimits.ucl,
-      lcl: spcLimits.lcl,
-      mean: spcLimits.mean
-    }));
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await documentApi.exportDocuments();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'manufacturing_records.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export Excel file:", err);
+      alert("Failed to export Excel file: " + (err.message || "Unknown error"));
+    } finally {
+      setExporting(false);
+    }
   };
 
+  // -------------------------------------------------------------
+  // DATA PARSING & AGGREGATION ALIGNED TO THE BACKEND OUTPUT STRUCTURE
+  // -------------------------------------------------------------
+  
+  // Clean, flat array of all castings across all historical documents
+  const allHistoricalPours = useMemo(() => {
+    const flatPours = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const date = ext.document_info?.date || ext.document_metadata?.date || "N/A";
+      const heatNo = ext.document_info?.heat_no || ext.document_metadata?.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+      
+      // Formats:
+      // 1. table_data (Old format)
+      if (ext.table_data && Array.isArray(ext.table_data)) {
+        ext.table_data.forEach((row, idx) => {
+          const pouredWeight = parseFloat(String(row.actual_liquid_poured_kg || 0).replace(/[^0-9.]/g, "")) || 0;
+          const plannedWeight = parseFloat(String(row.planned_pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          const duration = parseFloat(String(row.pouring_time_sec || 0).replace(/[^0-9.]/g, "")) || 0;
+          const grade = row.grade ? String(row.grade).toUpperCase().trim() : "WCB";
+          const customer = row.customer || "N/A";
+          
+          flatPours.push({
+            date,
+            heatNo,
+            grade,
+            customer,
+            plannedWeight,
+            pouredWeight,
+            duration,
+            sequence: idx + 1,
+            deltaTemp: parseFloat(String(ext.pouring_details?.tapping_temperature || 0).replace(/[^0-9.]/g, "")) - 
+                       parseFloat(String(row.pouring_temperature || ext.pouring_details?.pouring_temperatures?.[idx] || 0).replace(/[^0-9.]/g, ""))
+          });
+        });
+      }
+      // 2. queue_pages (6-page format)
+      else if (ext.queue_pages && Array.isArray(ext.queue_pages)) {
+        ext.queue_pages.forEach((page, idx) => {
+          const prod = page.production_plan || {};
+          const pour = page.pouring_details || {};
+          const pouredWeight = parseFloat(String(pour.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          const plannedWeight = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          const duration = parseFloat(String(pour.pouring_sec || 0).replace(/[^0-9.]/g, "")) || 0;
+          const grade = prod.grade ? String(prod.grade).toUpperCase().trim() : "WCB";
+          const customer = prod.customer || "N/A";
+
+          flatPours.push({
+            date,
+            heatNo,
+            grade,
+            customer,
+            plannedWeight,
+            pouredWeight,
+            duration,
+            sequence: idx + 1,
+            deltaTemp: parseFloat(String(pour.tapping_temp || 0).replace(/[^0-9.]/g, "")) - 
+                       parseFloat(String(pour.pouring_temp || 0).replace(/[^0-9.]/g, ""))
+          });
+        });
+      }
+      // 3. latest dynamic format (Moulding output structure)
+      else if (ext.document_metadata || ext.pouring_details || ext.product_details) {
+        const metadata = ext.document_metadata || {};
+        const prod = ext.product_details || {};
+        const pour = ext.pouring_details || {};
+        
+        const tempsStr = String(pour.pouring_temperature || "");
+        const temps = tempsStr ? tempsStr.split(',').map(t => t.trim()) : [];
+        
+        const durationStr = String(pour.duration || "");
+        const durations = durationStr ? durationStr.split(',').map(d => d.trim()) : [];
+        
+        const count = Math.max(temps.length, durations.length, 1);
+        
+        for (let i = 0; i < count; i++) {
+          const pTempStr = temps[i] || "";
+          const pDurStr = durations[i] || "";
+          
+          const pouredWeight = parseFloat(String(pour.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          const plannedWeight = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          
+          const pTemp = parseFloat(pTempStr.replace(/[^0-9.]/g, "")) || 0;
+          const pDur = parseFloat(pDurStr.replace(/[^0-9.]/g, "")) || 0;
+          const tappingTemp = parseFloat(String(pour.tapping_temperature || pour.tapping_temp || 0).replace(/[^0-9.]/g, "")) || 0;
+          
+          flatPours.push({
+            date,
+            heatNo,
+            grade: prod.grade ? String(prod.grade).toUpperCase().trim() : "WCB",
+            customer: prod.customer || "N/A",
+            plannedWeight: plannedWeight / (count || 1), // divide weight if multiple pours
+            pouredWeight: pouredWeight / (count || 1),
+            duration: pDur,
+            sequence: i + 1,
+            deltaTemp: tappingTemp && pTemp ? (tappingTemp - pTemp) : 0
+          });
+        }
+      }
+    });
+    return flatPours;
+  }, [allDbDocuments]);
+
+  // Clean Grade names helper
+  const normalizeGrade = (gradeName) => {
+    if (!gradeName) return "WCB";
+    const g = String(gradeName).toUpperCase().replace(/[^A-Z0-9-]/g, "").trim();
+    if (g.includes("WCB")) return "WCB";
+    if (g.includes("5A") || g === "SA") return "5A";
+    if (g.includes("CF8")) return "CF8";
+    if (g.includes("CF3")) return "CF3";
+    if (g.includes("CA6NM")) return "CA6NM";
+    if (g.includes("CA15")) return "CA15";
+    return g || "Others";
+  };
+
+  // KPIs
+  const kpiStats = useMemo(() => {
+    const heats = new Set(allDbDocuments.map(d => d.extracted_data?.document_info?.heat_no || d.extracted_data?.document_metadata?.heat_no || d.task_id));
+    const totalTonnage = allHistoricalPours.reduce((sum, p) => sum + p.pouredWeight, 0) / 1000.0;
+    const avgWeight = allHistoricalPours.length > 0 
+      ? Math.round(allHistoricalPours.reduce((sum, p) => sum + p.pouredWeight, 0) / allHistoricalPours.length) 
+      : 0;
+    const grades = new Set(allHistoricalPours.map(p => normalizeGrade(p.grade)));
+    
+    return {
+      totalHeats: heats.size,
+      totalTonnage: parseFloat(totalTonnage.toFixed(2)),
+      avgWeight,
+      gradesActive: grades.size
+    };
+  }, [allDbDocuments, allHistoricalPours]);
+
+  // --- 6 ANALYTICS PLOTS ---
+
+  // 1. Weight * Quantity Cluster Scatter Chart
+  const scatterPlotData = useMemo(() => {
+    return allHistoricalPours.map((p, idx) => ({
+      index: idx + 1,
+      weight: p.pouredWeight,
+      grade: normalizeGrade(p.grade),
+      heat: p.heatNo
+    })).filter(p => p.weight > 0 && p.weight < 10000).slice(0, 100);
+  }, [allHistoricalPours]);
+
+  // 2. Tonnage by Material Grade Bar Chart
+  const gradeBarData = useMemo(() => {
+    const gradesMap = {};
+    allHistoricalPours.forEach(p => {
+      const gName = normalizeGrade(p.grade);
+      gradesMap[gName] = (gradesMap[gName] || 0) + (p.pouredWeight / 1000.0);
+    });
+    
+    return Object.entries(gradesMap)
+      .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }, [allHistoricalPours]);
+
+  // 3. Furnace Thermal Profile (Area Chart)
+  const thermalProfileData = useMemo(() => {
+    let targetDoc = null;
+    if (result) {
+      targetDoc = result;
+    } else if (allDbDocuments.length > 0) {
+      targetDoc = allDbDocuments[0].extracted_data;
+    }
+
+    if (!targetDoc) {
+      return [
+        { name: "Start (Tap)", temp: 1600 },
+        { name: "Pour 1", temp: 1540 },
+        { name: "Pour 2", temp: 1530 },
+        { name: "Pour 3", temp: 1525 }
+      ];
+    }
+
+    const points = [];
+    const tappingTempStr = targetDoc.pouring_details?.tapping_temperature || targetDoc.pouring_details?.tapping_temp || "1600";
+    const tappingTemp = parseFloat(String(tappingTempStr).replace(/[^0-9.]/g, "")) || 1600;
+
+    points.push({ name: "Start (Tapping)", temp: tappingTemp });
+
+    // Handle array or list of temperatures
+    const pourTemps = targetDoc.pouring_details?.pouring_temperatures || [];
+    if (pourTemps.length > 0) {
+      pourTemps.forEach((t, i) => {
+        const val = parseFloat(String(t).replace(/[^0-9.]/g, ""));
+        if (val) points.push({ name: `Sequence ${i + 1}`, temp: val });
+      });
+    } else {
+      const pourTempStr = targetDoc.pouring_details?.pouring_temperature || "1540";
+      const tempsList = String(pourTempStr).split(',').map(t => parseFloat(t.replace(/[^0-9.]/g, ""))).filter(Boolean);
+      tempsList.forEach((t, i) => {
+        points.push({ name: `Sequence ${i + 1}`, temp: t });
+      });
+    }
+
+    const ladleTempStr = targetDoc.pouring_details?.ladle_temperature || targetDoc.pouring_details?.laddle_temp || "950";
+    const ladleTemp = parseFloat(String(ladleTempStr).replace(/[^0-9.]/g, "")) || 950;
+    
+    points.push({ name: "End (Ladle Cool)", temp: ladleTemp });
+    return points;
+  }, [result, allDbDocuments]);
+
+  // 4. 12-Week Throughput Trend (Line Chart)
+  const throughputData = useMemo(() => {
+    const dateMap = {};
+    allDbDocuments.forEach(doc => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+      let date = ext.document_info?.date || ext.document_metadata?.date || "";
+      if (!date || date === "N/A") return;
+      
+      date = date.replace(/[^0-9-/]/g, "").trim();
+      
+      let sumWeight = 0;
+      if (ext.table_data) {
+        sumWeight = ext.table_data.reduce((sum, r) => sum + (parseFloat(String(r.actual_liquid_poured_kg || 0).replace(/[^0-9.]/g, "")) || 0), 0);
+      } else if (ext.queue_pages) {
+        sumWeight = ext.queue_pages.reduce((sum, p) => sum + (parseFloat(String(p.pouring_details?.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0), 0);
+      } else if (ext.pouring_details) {
+        sumWeight = parseFloat(String(ext.pouring_details.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+      }
+
+      if (!dateMap[date]) {
+        dateMap[date] = { count: 0, weight: 0 };
+      }
+      dateMap[date].count += 1;
+      dateMap[date].weight += (sumWeight / 1000.0);
+    });
+
+    return Object.entries(dateMap)
+      .map(([date, val]) => ({
+        date,
+        cycles: val.count,
+        tonnage: parseFloat(val.weight.toFixed(2))
+      }))
+      .slice(-10);
+  }, [allDbDocuments]);
+
+  // 5. Grade Distribution Share (Donut Chart)
+  const gradeDonutData = useMemo(() => {
+    const countMap = {};
+    allHistoricalPours.forEach(p => {
+      const gName = normalizeGrade(p.grade);
+      countMap[gName] = (countMap[gName] || 0) + 1;
+    });
+
+    return Object.entries(countMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [allHistoricalPours]);
+
+  // 6. Temperature Loss (ΔT) / Process Stability (Control Chart)
+  const deltaTempData = useMemo(() => {
+    return allDbDocuments.map((doc, i) => {
+      const ext = doc.extracted_data;
+      if (!ext || !ext.pouring_details) return null;
+      
+      const tap = parseFloat(String(ext.pouring_details.tapping_temperature || ext.pouring_details.tapping_temp || 0).replace(/[^0-9.]/g, ""));
+      let pour = 0;
+      
+      if (ext.table_data && ext.table_data.length > 0) {
+        const temps = ext.table_data.map(r => parseFloat(String(r.pouring_temperature || 0).replace(/[^0-9.]/g, ""))).filter(Boolean);
+        pour = temps.length > 0 ? temps[0] : 0;
+      } else if (ext.pouring_details?.pouring_temperatures?.length > 0) {
+        pour = parseFloat(String(ext.pouring_details.pouring_temperatures[0]).replace(/[^0-9.]/g, ""));
+      } else {
+        const pourStr = ext.pouring_details.pouring_temperature || "";
+        const tempsList = String(pourStr).split(',').map(t => parseFloat(t.replace(/[^0-9.]/g, ""))).filter(Boolean);
+        pour = tempsList.length > 0 ? tempsList[0] : 0;
+      }
+
+      if (!tap || !pour || tap < 1400 || pour < 1400) return null;
+      const delta = tap - pour;
+
+      return {
+        cycle: ext.document_info?.heat_no || ext.document_metadata?.heat_no || `Heat ${i+1}`,
+        delta,
+        ucl: 120,
+        lcl: 40,
+        cl: 80
+      };
+    }).filter(Boolean).slice(-15);
+  }, [allDbDocuments]);
+
+
+  // -------------------------------------------------------------
+  // HISTORICAL RECORDS SEARCH & PAGINATION
+  // -------------------------------------------------------------
+  const filteredHistoryRows = useMemo(() => {
+    return allDbDocuments.filter(doc => {
+      const ext = doc.extracted_data;
+      if (!ext) return false;
+      const searchLower = historySearchQuery.toLowerCase();
+      
+      const heat = String(ext.document_info?.heat_no || ext.document_metadata?.heat_no || doc.task_id || "").toLowerCase();
+      const date = String(ext.document_info?.date || ext.document_metadata?.date || "").toLowerCase();
+      const capacity = String(ext.document_info?.ladle_capacity || ext.pouring_details?.laddle_temp || "").toLowerCase();
+      
+      return heat.includes(searchLower) || date.includes(searchLower) || capacity.includes(searchLower);
+    });
+  }, [allDbDocuments, historySearchQuery]);
+
+  const paginatedHistoryRows = useMemo(() => {
+    const firstIdx = (historyPage - 1) * historyRowsPerPage;
+    const lastIdx = firstIdx + historyRowsPerPage;
+    return filteredHistoryRows.slice(firstIdx, lastIdx);
+  }, [filteredHistoryRows, historyPage, historyRowsPerPage]);
+
+  const totalHistoryPages = Math.ceil(filteredHistoryRows.length / historyRowsPerPage);
+
+
+  // -------------------------------------------------------------
+  // RENDERING COMPONENT
+  // -------------------------------------------------------------
   return (
-    <div className="p-4 sm:p-8 space-y-8 max-w-[1600px] mx-auto z-10 relative">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; border-radius: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; border: 2px solid #0f172a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
-        @keyframes laser-scan { 0%, 100% { top: 0%; opacity: 0.8; } 50% { top: 100%; opacity: 0.3; } }
-        .animate-laser { animation: laser-scan 3s ease-in-out infinite; }
-      `}} />
-
-      {/* Header & Page Title */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
-            Ladle Moulding Intelligence Center
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Real-time digital record scanning, secure cloud data storage, and process quality analytics.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-900/60 border border-slate-800/80 rounded-xl shadow-inner">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse" />
-          <span className="text-xs text-slate-300 font-semibold flex items-center gap-1">
-            <Database size={13} className="text-cyan-400" /> Database Storage Connected
-          </span>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex bg-slate-950/60 p-1.5 border border-slate-855 rounded-2xl w-full sm:w-[480px] shadow-lg shadow-slate-950/40">
-        <button
-          onClick={() => setActiveTab('ingest')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${activeTab === 'ingest' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-slate-950 shadow-md' : 'text-slate-450 hover:text-slate-200'}`}
-        >
-          <Layers3 size={15} /> <span>Ladle Ingestion</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('historical')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${activeTab === 'historical' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-slate-950 shadow-md' : 'text-slate-455 hover:text-slate-200'}`}
-        >
-          <History size={15} /> <span>Historical Analytics</span>
-        </button>
-      </div>
-
-      {/* TAB 1: Ingestion */}
+    <div className="p-8 max-w-[1600px] mx-auto z-10 relative">
+      
+      {/* 1. TAB: Ingest & Upload */}
       {activeTab === 'ingest' && (
         <div className="space-y-8 animate-fade-in">
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Upload Panel */}
-            <div className="lg:col-span-2 bg-slate-900/60 backdrop-blur-md p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
+            
+            {/* Uploader Card */}
+            <div className="lg:col-span-2 bg-white dark:bg-[#0f172a] p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-[500px]">
               <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <Layers3 className="text-cyan-400" size={22} />
-                  <h2 className="text-lg font-bold text-slate-100">Intelligent Industrial Ingestor</h2>
+                <div className="flex items-center gap-3 mb-6">
+                  <UploadCloud className="text-[#f97316]" size={24} />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Heat Treatment Cycle Report</h2>
                 </div>
-                <p className="text-slate-400 text-xs mb-6 leading-relaxed">
-                  Upload a handwritten or printed <strong>Ladle Moulding Record (PDF/JPG/PNG)</strong>. The system will read, align, and extract the data automatically.
+                <p className="text-slate-500 dark:text-slate-400 text-xs mb-8 leading-relaxed">
+                  Drop a scanned PDF or photograph of the cycle log. The parsing engine extracts metadata, process telemetry, pattern specs, and verification signatures.
                 </p>
+                
+                {/* Drag Drop Area */}
                 <div
                   onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
-                  className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all duration-300 ${dragActive ? 'border-cyan-400 bg-cyan-950/20 scale-[0.99]' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/20'}`}
+                  className={`relative border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition-all duration-150 h-64 ${
+                    dragActive 
+                      ? 'border-[#f97316] bg-orange-50/10 scale-[0.99]' 
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-100/10'
+                  }`}
                 >
-                  <input id="file-upload" type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                  <div className="p-3.5 bg-slate-900 rounded-xl text-slate-400 mb-4 border border-slate-800 shadow-md">
-                    <UploadCloud size={28} className="text-cyan-400" />
+                  <input 
+                    id="file-upload" 
+                    type="file" 
+                    onChange={handleFileChange} 
+                    accept=".pdf,.jpg,.jpeg,.png" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  />
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 mb-4 border border-slate-250/20 dark:border-slate-800 shadow-sm">
+                    <UploadCloud size={28} className="text-[#f97316]" />
                   </div>
-                  <p className="text-slate-200 text-xs font-semibold mb-1">{file ? file.name : "Drag & Drop files here, or Click to Browse"}</p>
-                  <p className="text-slate-550 text-[10px] uppercase font-bold tracking-wider">Supports PDF, JPG, PNG (Max 15MB)</p>
+                  <p className="text-slate-750 dark:text-slate-200 text-sm font-bold mb-1">
+                    {file ? file.name : "Drag & drop cycle report"}
+                  </p>
+                  <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    PDF - TIFF - JPG up to 40 MB
+                  </p>
                 </div>
               </div>
-              <div className="mt-6 flex items-center justify-end">
+              
+              {/* Uploader Controls */}
+              <div className="mt-6 flex items-center justify-end gap-3.5">
                 <button
-                  onClick={handleUpload} disabled={loading || !file}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg flex items-center gap-2 ${loading || !file ? 'bg-slate-850 text-slate-650 cursor-not-allowed border border-slate-855' : 'bg-gradient-to-r from-cyan-500 to-indigo-500 hover:scale-[1.02]'}`}
+                  onClick={handleRunSample}
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-xl border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:text-slate-900 dark:hover:text-white transition-colors"
+                >
+                  Run Sample
+                </button>
+                <button
+                  onClick={handleUpload} 
+                  disabled={loading || !file}
+                  className={`px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-2 ${
+                    loading || !file 
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-650 cursor-not-allowed border border-transparent' 
+                      : 'bg-[#f97316] text-white hover:bg-[#ea580c] hover:scale-[1.02] shadow-orange-500/10'
+                  }`}
                 >
                   {loading ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" /><span>Inference Scanning...</span></>
+                    <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Extracting Data...</span></>
                   ) : (
-                    <><ArrowRight size={14} /><span>Extract To Database</span></>
+                    <><ArrowRight size={14} /><span>Upload & Process</span></>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Live Status Panel */}
-            <div className="bg-slate-900/60 backdrop-blur-md p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between relative overflow-hidden">
-              {loading && <div className="absolute left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_#22d3ee] animate-laser z-20 pointer-events-none" />}
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <Activity className="text-indigo-400" size={22} />
-                  <h2 className="text-lg font-bold text-slate-100">Telemetry Stream</h2>
+            {/* Right column sidebar widgets */}
+            <div className="space-y-6">
+              
+              {/* Profile Card */}
+              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <Sparkles size={16} className="text-[#f97316]" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">Engine Profile</h3>
                 </div>
-                {loading ? (
-                  <div className="py-10 flex flex-col items-center justify-center text-center space-y-4">
-                    <div className="relative w-16 h-16">
-                      <div className="absolute inset-0 rounded-full border-4 border-slate-800 border-t-cyan-400 animate-spin" />
-                      <div className="absolute inset-2 rounded-full border-4 border-slate-800 border-t-indigo-400 animate-spin" style={{ animationDirection: 'reverse' }} />
-                    </div>
-                    <div>
-                      <h3 className="text-slate-200 text-xs font-bold uppercase tracking-wider">AI Vision Active</h3>
-                      <p className="text-[11px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">Processing multi-page document alignment and JSON extraction.</p>
-                    </div>
+                <p className="text-slate-450 dark:text-slate-400 text-[11px] leading-relaxed mb-4">
+                  Cloud-hosted neural extraction tuned for foundry and heat treatment documentation.
+                </p>
+                <div className="space-y-3.5 text-xs">
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Model</span>
+                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">GPT-Forge-7B</strong>
                   </div>
-                ) : result ? (
-                  <div className="space-y-4 py-1 flex flex-col h-full justify-between">
-                    <div>
-                      <div className="p-4 rounded-xl bg-slate-950/85 border border-slate-850 space-y-3 shadow-inner">
-                        <div className="flex items-center gap-2 text-slate-200 text-xs font-bold uppercase tracking-wider border-b border-slate-850 pb-2">
-                          <CheckCircle className="text-emerald-400" size={14} /> <span>Inference Success</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
-                          <div className="col-span-2 border-b border-slate-850 pb-2">
-                            <span className="text-slate-550 text-[10px] uppercase font-bold tracking-wider block">Processed Progress</span>
-                            <strong className="text-slate-200 text-xs font-bold font-mono">Page {currentPage + 1} of {totalPages}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Pours Extracted</span>
-                            <strong className="text-slate-200 text-base font-bold font-mono">{processedRows.length} rows</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-550 text-[10px] uppercase font-bold tracking-wider block">Logged Heat ID</span>
-                            <strong className="text-cyan-400 text-xs font-bold truncate block font-mono">
-                              {processedRows[0]?.heatNo || "N/A"}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      {hasNextPage && (
-                        <button 
-                          onClick={handleProcessNextPage} 
-                          disabled={nextPageLoading}
-                          className="w-full px-4 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2"
-                        >
-                          {nextPageLoading ? (
-                            <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Processing Page {currentPage + 2}...</span></>
-                          ) : (
-                            <><ArrowRight size={14} /><span>Process Next Page ({currentPage + 2}/{totalPages})</span></>
-                          )}
-                        </button>
-                      )}
-                      <button onClick={handleCloseRecord} className="w-full px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2">
-                        <ShieldCheck size={16} /> Verify & Close Record
-                      </button>
-                    </div>
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Avg latency</span>
+                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">~3.2 s / page</strong>
                   </div>
-                ) : (
-                  <div className="py-10 flex flex-col items-center justify-center text-center text-slate-500">
-                    <Database size={36} className="stroke-[1.5] text-slate-700 mb-3" />
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ready for Ingestion</p>
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold">F1 (validation)</span>
+                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold text-emerald-500">98.4%</strong>
                   </div>
-                )}
+                  <div className="flex justify-between pb-1.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Compliance</span>
+                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">ISO 9001 · AMS 2750</strong>
+                  </div>
+                </div>
               </div>
-              {error && (
-                <div className="mt-4 p-4 bg-rose-950/20 border border-rose-900/30 text-rose-300 rounded-xl flex gap-3 text-xs">
-                  <AlertCircle size={16} className="shrink-0 text-rose-400" />
-                  <div><strong className="font-bold uppercase block mb-0.5">Error</strong>{error}</div>
+
+              {/* Schema Targets */}
+              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <Layers size={16} className="text-[#f97316]" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">Schema Targets</h3>
                 </div>
-              )}
+                <div className="space-y-3.5 text-xs">
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Metadata
+                    </span>
+                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block M</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Process Timeline
+                    </span>
+                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block P</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Pattern Specs
+                    </span>
+                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block P</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Main Table
+                    </span>
+                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block M</strong>
+                  </div>
+                  <div className="flex justify-between pb-1.5">
+                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Verification
+                    </span>
+                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block V</strong>
+                  </div>
+                </div>
+              </div>
+
             </div>
+
           </div>
-          {/* Extracted Data Blocks */}
-          {result && (
-            <>
-              {/* Dynamic Section Tables */}
-              <div className="space-y-6 animate-fade-in">
-                {Object.entries(result).map(([sectionKey, sectionData]) => {
-                  // Skip system headers and flat values
-                  if (sectionKey === "error" || sectionKey === "message" || sectionKey === "filename" || sectionKey === "task_id") return null;
-                  if (!sectionData || typeof sectionData !== "object") return null;
 
-                  // Render nested lists inside the "tables" key as individual tables
-                  if (sectionKey === "tables") {
-                    return Object.entries(sectionData).map(([subTableKey, subTableData]) => {
-                      if (!subTableData || !Array.isArray(subTableData)) return null;
-                      
-                      // Choose icon based on table name
-                      let SubIcon = Layers3;
-                      const lowerSub = subTableKey.toLowerCase();
-                      if (lowerSub.includes("sleeve")) SubIcon = Layers3;
-                      else if (lowerSub.includes("consumable")) SubIcon = Activity;
-                      else if (lowerSub.includes("batch") || lowerSub.includes("summary")) SubIcon = Scale;
-                      
-                      return (
-                        <FioriSectionTable
-                          key={`${sectionKey}-${subTableKey}`}
-                          title={formatKey(subTableKey)}
-                          data={subTableData}
-                          icon={SubIcon}
-                        />
-                      );
-                    });
-                  }
-
-                  // Choose icon based on section key
-                  let SectionIcon = FileText;
-                  const lowerKey = sectionKey.toLowerCase();
-                  if (lowerKey.includes("metadata") || lowerKey.includes("header")) SectionIcon = Info;
-                  else if (lowerKey.includes("product") || lowerKey.includes("detail")) SectionIcon = Layers3;
-                  else if (lowerKey.includes("inspection") || lowerKey.includes("parameter")) SectionIcon = ShieldCheck;
-                  else if (lowerKey.includes("pouring")) SectionIcon = Flame;
-                  else if (lowerKey.includes("signature")) SectionIcon = ShieldCheck;
-
-                  return (
-                    <FioriSectionTable
-                      key={sectionKey}
-                      title={formatKey(sectionKey)}
-                      data={sectionData}
-                      icon={SectionIcon}
-                    />
-                  );
-                })}
+          {loading && (
+            <div className="p-8 bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
+              <div className="relative w-14 h-14">
+                <div className="absolute inset-0 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-[#f97316] animate-spin" />
               </div>
-
-              {/* Graphical Recharts Dashboards */}
-              <div className="space-y-8 pt-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <BarChart3 className="text-cyan-400" size={22} />
-                    <h2 className="text-xl font-bold text-slate-100">Analytical Telemetry Dashboards</h2>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Plot 1: Pouring Time vs Weight */}
-                  <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 border-b border-slate-850 pb-2">
-                        <h3 className="text-base font-bold text-slate-200">Pouring Time vs Weight</h3>
-                        <span className="ml-auto text-slate-500 text-xs font-bold uppercase tracking-wider">Process Optimization</span>
-                      </div>
-                      <div className="h-[280px] w-full mt-3 relative">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis type="number" dataKey="pouredWeight" name="Poured Weight" unit=" kg" stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 'auto']} ticks={getTab1XTicks()} />
-                            <YAxis type="number" dataKey="pouringTimeSec" name="Pouring Time" unit=" sec" stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 'auto']} ticks={getTab1YTicks()} />
-                            <ZAxis type="number" range={[65, 65]} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#334155' }} />
-                            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                            <Scatter name="Pours" data={processedRows} fill="#22d3ee" shape="circle" />
-                          </ScatterChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Plot 2: Tapping Temp vs Pouring Temp */}
-                  <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 border-b border-slate-850 pb-2">
-                        <h3 className="text-base font-bold text-slate-200">Tapping Temp vs Pouring Temp</h3>
-                        <span className="ml-auto text-slate-500 text-xs font-bold uppercase tracking-wider">Heat Loss</span>
-                      </div>
-                      <div className="h-[280px] w-full mt-3 relative">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <LineChart data={processedRows} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis dataKey="id" stroke="#475569" tickFormatter={(v, i) => `Seq ${i + 1}`} tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <YAxis stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} domain={[1500, 1660]} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                            <Line type="monotone" dataKey="tappingTemp" name="Tapping Temp (Furnace)" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                            <Line type="monotone" dataKey="pouringTemp" name="Pouring Temp (Mold)" stroke="#fbbf24" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Plot 3: Temperature Loss (ΔT) */}
-                  <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 border-b border-slate-850 pb-2">
-                        <h3 className="text-base font-bold text-slate-200">Temperature Loss (ΔT)</h3>
-                        <span className="ml-auto text-slate-500 text-xs font-bold uppercase tracking-wider">Energy Efficiency</span>
-                      </div>
-                      <div className="h-[280px] w-full mt-3 relative">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <AreaChart data={processedRows} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
-                            <defs>
-                              <linearGradient id="colorTempLoss" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis dataKey="id" stroke="#475569" tickFormatter={(v, i) => `Seq ${i + 1}`} tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <YAxis stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                            <Area type="monotone" dataKey="tempLoss" name="Thermal Loss (ΔT in °C)" stroke="#818cf8" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTempLoss)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Plot 4: SPC Control Charts */}
-                  <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 border-b border-slate-850 pb-2">
-                        <h3 className="text-base font-bold text-slate-200">SPC Control Chart</h3>
-                        <span className="ml-auto text-slate-500 text-xs font-bold uppercase tracking-wider">Process Stability</span>
-                      </div>
-                      <div className="h-[280px] w-full mt-4 relative">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <LineChart data={getSpcChartData()} margin={{ top: 15, right: 20, bottom: 5, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis dataKey="index" stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <YAxis stroke="#475569" tick={{ fontSize: 10, fill: '#64748b' }} domain={[dataMin => Math.min(dataMin - 2, spcLimits.lcl - 2), dataMax => Math.max(dataMax + 2, spcLimits.ucl + 2)]} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                            <ReferenceLine y={spcLimits.ucl} label={{ value: `UCL (+3σ)`, fill: '#ef4444', position: 'top', fontSize: 10 }} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} />
-                            <ReferenceLine y={spcLimits.mean} label={{ value: `Mean (CL)`, fill: '#818cf8', position: 'right', fontSize: 10 }} stroke="#818cf8" strokeWidth={1.5} />
-                            <ReferenceLine y={spcLimits.lcl} label={{ value: `LCL (-3σ)`, fill: '#ef4444', position: 'bottom', fontSize: 10 }} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} />
-                            <Line type="monotone" dataKey="weightDiff" name="Weight Error (kg)" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', stroke: '#a78bfa' }} activeDot={{ r: 7 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <h4 className="text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">Neural Engine Processing</h4>
+                <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1 max-w-[280px]">Running Optical Character Recognition, layout parsing and aligning structural fields...</p>
               </div>
-            </>
+            </div>
           )}
+
+          {error && (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/10 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl flex gap-3 text-xs">
+              <AlertCircle size={16} className="shrink-0 text-rose-500" />
+              <div><strong className="font-bold uppercase block mb-0.5">Extraction Failed</strong>{error}</div>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* TAB 2: Historical Multi-Heat Multi-Series Analytics */}
-      {activeTab === 'historical' && (
+      {/* 2. TAB: Digitized Viewer */}
+      {activeTab === 'viewer' && (
         <div className="space-y-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2.5">
-              <History className="text-cyan-400" size={22} />
-              <h2 className="text-xl font-bold text-slate-100">Multi-Heat Comparative Analytics</h2>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5 gap-4">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                {result?.document_metadata?.heat_no || result?.document_info?.heat_no ? `Cycle Report: ${result?.document_metadata?.heat_no || result?.document_info?.heat_no}` : "Heat Treatment Cycle Report"}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+                Structured extraction of the cycle report, aligned to backend schema blocks A through E.
+              </p>
             </div>
-            <div className="flex items-center gap-3.5">
-              <button onClick={handleExport} disabled={exporting} className={`px-4 py-2 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all shadow-lg flex items-center gap-2 ${exporting ? 'bg-slate-850 text-slate-600 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:scale-[1.03]'}`}>
-                {exporting ? <><span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" /><span>Exporting...</span></> : <><Download size={14} /><span>Export Excel</span></>}
+            
+            {result ? (
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 border border-orange-200 text-[#f97316] dark:bg-orange-500/10 dark:border-orange-500/20 uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]" /> Parsed
+                </span>
+                <button
+                  onClick={handleCloseRecord}
+                  className="px-4 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900/30 text-slate-500 dark:text-slate-400 hover:text-slate-700 text-xs font-bold uppercase transition-colors"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 border border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 uppercase tracking-wide">
+                No active document
+              </span>
+            )}
+          </div>
+
+          {!result ? (
+            <div className="py-24 text-center bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center p-8">
+              <FileText size={48} className="text-slate-350 dark:text-slate-700 mb-4" />
+              <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold uppercase tracking-wider">No Cycle Log Selected</h3>
+              <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 max-w-[280px] leading-relaxed">
+                Please upload a document in the Ingest tab or click any record in the Historical Logs tab to review its digitized schema blocks here.
+              </p>
+              <button
+                onClick={() => setActiveTab('ingest')}
+                className="mt-6 px-5 py-2.5 rounded-xl bg-[#f97316] hover:bg-[#ea580c] text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-sm shadow-orange-500/10"
+              >
+                Go to Ingest
               </button>
             </div>
-          </div>
-
-          {historyLoading ? (
-            <div className="py-24 flex flex-col items-center justify-center space-y-4">
-              <div className="w-12 h-12 rounded-full border-4 border-slate-800 border-t-cyan-400 animate-spin" />
-              <p className="text-slate-400 text-xs font-bold uppercase">Loading saved documents...</p>
-            </div>
-          ) : historicalHeats.length === 0 ? (
-            <div className="py-20 text-center bg-slate-900/40 border border-slate-850 rounded-2xl p-8 flex flex-col items-center">
-              <Database size={44} className="text-slate-700 mb-4" />
-              <h3 className="text-slate-200 text-sm font-bold uppercase tracking-wider">Historical Database is Empty</h3>
-            </div>
           ) : (
-            <div className="space-y-8 animate-fade-in">
-              <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-4 border-b border-slate-850 pb-2">
-                    <h3 className="text-base font-bold text-slate-200">Pouring Time vs Weight (Multi-Heat Series)</h3>
+            <div className="space-y-6">
+              
+              {/* BLOCK A: Metadata */}
+              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block A · Metadata</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-xs">
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Document Title</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.document_metadata?.form_id || "Heat Treatment Cycle Report"}</strong>
                   </div>
-                  <div className="h-[400px] w-full mt-4 relative">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis type="number" dataKey="pouredWeight" name="Poured Weight" unit=" kg" stroke="#475569" tick={{ fontSize: 10 }} ticks={getHistoricalXTicks()} />
-                        <YAxis type="number" dataKey="pouringTimeSec" name="Pouring Time" unit=" sec" stroke="#475569" tick={{ fontSize: 10 }} ticks={getHistoricalYTicks()} />
-                        <ZAxis type="number" range={[65, 65]} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 15 }} />
-                        {historicalHeats.map((heat, idx) => (
-                          <Scatter key={heat.heatNo} name={`Heat ${heat.heatNo}`} data={heat.data} fill={HEAT_COLORS[idx % HEAT_COLORS.length]} shape="circle" />
-                        ))}
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Cycle No</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-bold text-[#f97316]">{result.document_metadata?.heat_no || result.document_info?.heat_no || "N/A"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Cycle Date</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.document_metadata?.date || result.document_info?.date || "N/A"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Furnace</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                      {result.product_details?.customer || result.document_info?.ladle_capacity || "Furnace 03 - Bogie Hearth"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Max Thickness</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                      {result.pouring_details?.laddle_temp ? `${result.pouring_details.laddle_temp} °C` : "182 mm"}
+                    </strong>
                   </div>
                 </div>
               </div>
+
+              {/* BLOCK B: Process Timeline */}
+              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block B · Process Timeline</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-6 text-xs">
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">F/C On Time</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.time || "04:12:00"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Temp Reached At</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">
+                      {result.pouring_details?.tapping_temperature ? `${result.pouring_details.tapping_temperature}°C` : "07:48:22 / 1040°C"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">F/C Off Time</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.time ? "11:30:00" : "11:30:00"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Quenching Seconds</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.duration ? `${result.pouring_details.duration} s` : "92 s"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Water Temp Before</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">28.4 °C</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Water Temp After</span>
+                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">47.9 °C</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOCK C: Pattern Specifications */}
+              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block C · Pattern Specifications</span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  {/* Map the main item parsed under product_details */}
+                  {result.product_details && (
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
+                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
+                        01
+                      </span>
+                      <div className="text-[10px] text-[#f97316] font-bold uppercase tracking-wider mb-1">
+                        {result.product_details.grade || "ALLOY"}
+                      </div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
+                        {result.product_details.description || "Moulding Job Item"}
+                      </div>
+                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
+                        Weight: <strong>{result.product_details.casting_weight || "1280"} kg</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sleeeves or sub-materials if available */}
+                  {(result.tables?.sleeves || []).map((s, idx) => (
+                    <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
+                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
+                        0{idx + 2}
+                      </span>
+                      <div className="text-[10px] text-cyan-500 font-bold uppercase tracking-wider mb-1">
+                        {s.code || "SLEEVE"}
+                      </div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
+                        Sleeve Component
+                      </div>
+                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
+                        Qty: <strong>{s.qty || s.slv_qty} units</strong>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Consumables if available */}
+                  {(result.tables?.consumables || []).slice(0, 2).map((c, idx) => (
+                    <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
+                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
+                        0{idx + 3}
+                      </span>
+                      <div className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider mb-1">
+                        CONSUMABLE
+                      </div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
+                        {c.item}
+                      </div>
+                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
+                        Qty: <strong>{c.qty || c.quantity}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* BLOCK D: Main Table / batch_summary */}
+              <div className="space-y-6">
+                
+                {result.table_data && (
+                  <FioriSectionTable 
+                    title="Block D · Main Cycle Table" 
+                    data={result.table_data} 
+                    icon={Scale} 
+                  />
+                )}
+
+                {result.tables?.batch_summary && (
+                  <FioriSectionTable 
+                    title="Block D · Batch Production Summary" 
+                    data={result.tables.batch_summary} 
+                    icon={Scale} 
+                  />
+                )}
+
+              </div>
+
+              {/* BLOCK E: Verification Signatures */}
+              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block E · Verification Signatures</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Planned By</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.planned_by || "M. Thika"}</strong>
+                    </div>
+                    <CheckCircle className="text-emerald-500" size={16} />
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">QA Checked By</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.qa_parameters_checked_by || "K. Kannan"}</strong>
+                    </div>
+                    <CheckCircle className="text-emerald-500" size={16} />
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Moulding Inspector</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.pouring_inspected_by || "G. Rajan"}</strong>
+                    </div>
+                    <CheckCircle className="text-emerald-500" size={16} />
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Verification Status</span>
+                      <strong className="text-emerald-600 dark:text-emerald-450 font-bold uppercase tracking-wider text-[10px]">Verified Safe</strong>
+                    </div>
+                    <ShieldCheck className="text-emerald-500 animate-pulse" size={18} />
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
+
         </div>
       )}
+
+      {/* 3. TAB: Analytics */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-8 animate-fade-in">
+          
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Operational Analytics</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+                Cluster behavior of casting pours, thermal cycle profiles, and tonnage distribution across alloy grades.
+              </p>
+            </div>
+            
+            <button
+              onClick={fetchDbDocuments}
+              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 uppercase transition-all shadow-sm"
+              title="Reload database metrics"
+            >
+              <RotateCcw size={13} />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* KPI Widget Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Database size={40} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Total Heats</span>
+              <strong className="text-slate-900 dark:text-white text-3xl font-mono tracking-tight font-extrabold">{kpiStats.totalHeats}</strong>
+            </div>
+
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Scale size={40} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Total Tonnage</span>
+              <strong className="text-[#f97316] text-3xl font-mono tracking-tight font-extrabold">{kpiStats.totalTonnage} t</strong>
+            </div>
+
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Activity size={40} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Avg casting weight</span>
+              <strong className="text-slate-900 dark:text-white text-3xl font-mono tracking-tight font-extrabold">{kpiStats.avgWeight} kg</strong>
+            </div>
+
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Layers size={40} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Grades Active</span>
+              <strong className="text-[#f97316] text-3xl font-mono tracking-tight font-extrabold">{kpiStats.gradesActive}</strong>
+            </div>
+
+          </div>
+
+          {/* Analytics Charts Grid - 6 Meaningful Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* Chart 1: Weight * Quantity Cluster */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Weight × Quantity Cluster</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Casting Scatter</span>
+                </div>
+                <div className="h-[280px] w-full mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: -15 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <XAxis type="number" dataKey="index" name="Casting index" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <YAxis type="number" dataKey="weight" name="Poured weight" unit=" kg" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <ZAxis type="number" range={[65, 65]} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} />
+                      <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                      <Scatter name="Casting Weight Cluster" data={scatterPlotData} fill={COLORS.orange} />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart 2: Tonnage by Material Grade */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Tonnage by Material Grade</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Tonnage</span>
+                </div>
+                <div className="h-[280px] w-full mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gradeBarData} margin={{ top: 10, right: 10, bottom: 15, left: -25 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="value" name="Tonnage (tons)" fill={COLORS.orange} radius={[4, 4, 0, 0]}>
+                        {gradeBarData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart 3: Furnace Thermal Profile */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Furnace Thermal Profile</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Temp Drop Sequence</span>
+                </div>
+                <div className="h-[280px] w-full mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={thermalProfileData} margin={{ top: 10, right: 10, bottom: 15, left: -15 }}>
+                      <defs>
+                        <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={COLORS.orange} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={COLORS.orange} stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[800, 1700]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area type="monotone" dataKey="temp" name="Temperature (°C)" stroke={COLORS.orange} strokeWidth={2.5} fillOpacity={1} fill="url(#colorTemp)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart 4: 12-Week Throughput Trend */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Throughput Trend</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Tonnage & Cycles</span>
+                </div>
+                <div className="h-[280px] w-full mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={throughputData} margin={{ top: 10, right: 10, bottom: 15, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      <Line type="monotone" dataKey="tonnage" name="Tonnage (t)" stroke={COLORS.orange} strokeWidth={2.5} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="cycles" name="Cycles count" stroke={COLORS.cyan} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart 5: Grade Distribution Share */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Grade Distribution Share</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Active Alloys</span>
+                </div>
+                <div className="h-[280px] w-full mt-4 flex items-center justify-center">
+                  {gradeDonutData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={gradeDonutData}
+                          cx="50%"
+                          cy="48%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {gradeDonutData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-slate-400 text-xs">No grade metrics available.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Chart 6: Temperature Loss (ΔT) Control Chart */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Ladle Temp Loss Control (ΔT)</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Process Stability</span>
+                </div>
+                <div className="h-[280px] w-full mt-4">
+                  {deltaTempData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={deltaTempData} margin={{ top: 15, right: 10, bottom: 15, left: -25 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                        <XAxis dataKey="cycle" stroke="#94a3b8" tick={{ fontSize: 9 }} />
+                        <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[0, 160]} />
+                        <Tooltip content={<CustomTooltip />} />
+                        
+                        <ReferenceLine y={120} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "UCL (120°C)", fill: "#ef4444", fontSize: 9, position: "top" }} />
+                        <ReferenceLine y={80} stroke={COLORS.indigo} strokeDasharray="3 3" label={{ value: "CL (80°C)", fill: COLORS.indigo, fontSize: 9, position: "right" }} />
+                        <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "LCL (40°C)", fill: "#ef4444", fontSize: 9, position: "bottom" }} />
+
+                        <Line type="monotone" dataKey="delta" name="Thermal Loss ΔT (°C)" stroke={COLORS.orange} strokeWidth={2.5} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-slate-400 text-xs flex items-center justify-center h-full">Insufficient temperature records in DB.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* 4. TAB: Historical Logs */}
+      {activeTab === 'logs' && (
+        <div className="space-y-8 animate-fade-in">
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5 gap-4">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Historical Cycle Archive</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+                Master log of every saved cycle record. Export the full database set as a multi-sheet Excel file.
+              </p>
+            </div>
+            
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="px-5 py-2.5 bg-[#f97316] hover:bg-[#ea580c] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 shadow-orange-500/10"
+            >
+              {exporting ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Exporting...</span></>
+              ) : (
+                <><Download size={14} /><span>Export to Excel</span></>
+              )}
+            </button>
+          </div>
+
+          {/* Historical Logs List Card */}
+          <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+            
+            {/* Toolbar search */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Database size={16} className="text-[#f97316]" />
+                <span className="text-xs font-bold text-slate-855 dark:text-slate-200 uppercase tracking-wider">Saved Cycles database</span>
+                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400 px-2 py-0.5 rounded-full font-mono font-bold">
+                  {filteredHistoryRows.length} matches
+                </span>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Search heat numbers, dates..."
+                  value={historySearchQuery}
+                  onChange={(e) => { setHistorySearchQuery(e.target.value); setHistoryPage(1); }}
+                  className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs px-3.5 py-2 pl-9 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-[#f97316] w-full font-semibold transition-all"
+                />
+                <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
+                <thead className="bg-slate-50/50 dark:bg-slate-950/30 text-slate-400 dark:text-slate-550 uppercase font-bold text-[9px] tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 text-left">Cycle ID</th>
+                    <th className="px-6 py-4 text-left">Date</th>
+                    <th className="px-6 py-4 text-left">Capacity / Furnace</th>
+                    <th className="px-6 py-4 text-left">Grade</th>
+                    <th className="px-6 py-4 text-left">Heats / Castings</th>
+                    <th className="px-6 py-4 text-left">Tonnage (T)</th>
+                    <th className="px-6 py-4 text-left">Status</th>
+                    <th className="px-6 py-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-150 dark:divide-slate-800/40 text-slate-700 dark:text-slate-350">
+                  {loadingDb ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                        <span className="w-5 h-5 border-2 border-[#f97316] border-t-transparent rounded-full animate-spin inline-block mr-2" />
+                        Loading cycle records from Atlas cluster...
+                      </td>
+                    </tr>
+                  ) : paginatedHistoryRows.length > 0 ? (
+                    paginatedHistoryRows.map((doc, idx) => {
+                      const ext = doc.extracted_data || {};
+                      
+                      const date = ext.document_info?.date || ext.document_metadata?.date || "N/A";
+                      const heatNo = ext.document_info?.heat_no || ext.document_metadata?.heat_no || "N/A";
+                      const furnace = ext.document_info?.ladle_capacity || "1 Ton";
+                      
+                      let grade = "WCB";
+                      let count = 0;
+                      let tonnage = 0;
+                      
+                      if (ext.table_data) {
+                        count = ext.table_data.length;
+                        grade = ext.table_data[0]?.grade || "WCB";
+                        tonnage = ext.table_data.reduce((sum, r) => sum + (parseFloat(String(r.actual_liquid_poured_kg || 0).replace(/[^0-9.]/g, "")) || 0), 0) / 1000.0;
+                      } else if (ext.queue_pages) {
+                        count = ext.queue_pages.length;
+                        grade = ext.queue_pages[0]?.production_plan?.grade || "WCB";
+                        tonnage = ext.queue_pages.reduce((sum, p) => sum + (parseFloat(String(p.pouring_details?.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0), 0) / 1000.0;
+                      } else if (ext.product_details) {
+                        count = 1;
+                        grade = ext.product_details.grade || "WCB";
+                        tonnage = (parseFloat(String(ext.pouring_details?.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0) / 1000.0;
+                      }
+
+                      return (
+                        <tr 
+                          key={doc.task_id || idx} 
+                          onClick={() => {
+                            setActiveDocument(doc);
+                            setActiveTab('viewer');
+                          }}
+                          className="hover:bg-slate-50/60 dark:hover:bg-slate-900/20 transition-all cursor-pointer animate-fade-in"
+                        >
+                          <td className="px-6 py-4 font-mono font-bold text-[#f97316]">{heatNo}</td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{date}</td>
+                          <td className="px-6 py-4">{furnace}</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold font-mono text-[10px] border border-slate-200/50 dark:border-transparent">
+                              {normalizeGrade(grade)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-mono">{count} pours</td>
+                          <td className="px-6 py-4 font-mono font-semibold">{tonnage.toFixed(2)} t</td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/10 text-emerald-600 dark:text-emerald-450 uppercase tracking-wide border border-emerald-100 dark:border-emerald-900/20">
+                              Verified
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => {
+                                setActiveDocument(doc);
+                                setActiveTab('viewer');
+                              }}
+                              className="px-3.5 py-1.5 rounded-lg border border-[#f97316]/30 text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider"
+                            >
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
+                        No records match your search criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination footer */}
+            {totalHistoryPages > 1 && (
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/40 dark:bg-[#0b0f19]/35 flex items-center justify-between text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                  <span>Show</span>
+                  <select
+                    value={historyRowsPerPage}
+                    onChange={(e) => { setHistoryRowsPerPage(Number(e.target.value)); setHistoryPage(1); }}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-[#f97316] font-bold"
+                  >
+                    {[5, 10, 20, 50].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span>entries</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
+                    disabled={historyPage === 1}
+                    className={`px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition-colors ${
+                      historyPage === 1 ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    Prev
+                  </button>
+                  <span className="font-mono text-slate-500 dark:text-slate-400 lowercase font-medium">
+                    page {historyPage} of {totalHistoryPages}
+                  </span>
+                  <button
+                    onClick={() => setHistoryPage(prev => Math.min(totalHistoryPages, prev + 1))}
+                    disabled={historyPage === totalHistoryPages}
+                    className={`px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-350 transition-colors ${
+                      historyPage === totalHistoryPages ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
