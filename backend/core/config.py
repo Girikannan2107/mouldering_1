@@ -1,6 +1,6 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, validator # Import validator
+from pydantic import Field, validator, AliasChoices # Import validator
 from typing import Optional
 
 class Settings(BaseSettings):
@@ -11,9 +11,14 @@ class Settings(BaseSettings):
     
     # API Keys
     GEMINI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY_1: Optional[str] = None
+    GEMINI_API_KEY_2: Optional[str] = None
+    GEMINI_API_KEY_3: Optional[str] = None
+    GEMINI_API_KEY_4: Optional[str] = None
+    GEMINI_API_KEY_5: Optional[str] = None
     
     # Database Settings
-    MONGO_URI: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URI")
+    MONGO_URI: str = Field(default="mongodb://localhost:27017", validation_alias=AliasChoices("MONGODB_URI", "MONGO_URI"))
     MONGO_DB_NAME: str = Field(default="industrial_ocr", validation_alias="DB_NAME")
     STATELESS_MODE: bool = False
 
@@ -33,6 +38,18 @@ class Settings(BaseSettings):
             os.makedirs(v, exist_ok=True)
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Resolve paths relative to this file to handle different working directories
+    _config_dir = os.path.dirname(os.path.abspath(__file__))
+    _backend_dir = os.path.dirname(_config_dir)
+    _root_dir = os.path.dirname(_backend_dir)
+
+    model_config = SettingsConfigDict(
+        env_file=(
+            os.path.join(_root_dir, ".env"),
+            os.path.join(_backend_dir, ".env"),
+            ".env"
+        ),
+        extra="ignore"
+    )
 
 settings = Settings()

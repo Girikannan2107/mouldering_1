@@ -1,12 +1,11 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Any
+from pydantic import BaseModel
+from typing import List, Optional
 
-# --- QUEUE PAGE MODELS ---
-class DocumentHeaders(BaseModel):
+class DocumentMetadata(BaseModel):
     form_id: Optional[str] = None
-    heat_no: Optional[str] = None
     planning_date: Optional[str] = None
-    pouring_date_header: Optional[str] = None
+    heat_no: Optional[str] = None
+    pouring_date: Optional[str] = None
 
 class ProductDetails(BaseModel):
     description: Optional[str] = None
@@ -27,79 +26,67 @@ class ProductDetails(BaseModel):
     no_of_cores: Optional[str] = None
     method_remarks: Optional[str] = None
 
-class SleeveTableItem(BaseModel):
+class MouldingRow(BaseModel):
+    contractor: Optional[str] = None
+    moulder: Optional[str] = None
+    moulding_date: Optional[str] = None
+    moulding_time: Optional[str] = None
+    coating_details: Optional[str] = None
+    coating_date: Optional[str] = None
+    coating_time: Optional[str] = None
+
+class MouldingDetails(BaseModel):
+    top: Optional[MouldingRow] = None
+    bottom: Optional[MouldingRow] = None
+
+class InspectionParameters(BaseModel):
+    pattern_finishing: Optional[str] = None
+    process: Optional[str] = None
+    chill_size_thickness: Optional[str] = None
+    chill_slot_blasted: Optional[str] = None
+    chill_finishing: Optional[str] = None
+    sleeve_size_oven: Optional[str] = None
+    refactory_sleeve: Optional[str] = None
+    lettering_checking: Optional[str] = None
+    mould_checking: Optional[str] = None
+
+class SandConsumptionRow(BaseModel):
+    chromite_sand: Optional[str] = None
+    silica_sand: Optional[str] = None
+    sinotherm: Optional[str] = None
+    activator: Optional[str] = None
+    sparklex_100a_isomol: Optional[str] = None
+
+class RefractorySleeveAndSandConsumption(BaseModel):
+    notes: Optional[str] = None
+    top: Optional[SandConsumptionRow] = None
+    bottom: Optional[SandConsumptionRow] = None
+
+class MaterialsTableItem(BaseModel):
     sle_code: Optional[str] = None
     sle_name: Optional[str] = None
     slv_qty: Optional[str] = None
-
-class ConsumableItem(BaseModel):
-    item: Optional[str] = None
-    quantity: Optional[str] = None
-
-class InspectionParameters(BaseModel):
-    hardness_range_mould: Optional[str] = None
-    hardness_range_core: Optional[str] = None
-    coating_baume_value: Optional[str] = None
-    core_oven_baking_on_time: Optional[str] = None
-    core_oven_baking_off_time: Optional[str] = None
-    core_oven_preheating_temp: Optional[str] = None
-    no_of_cores: Optional[str] = None
-    mould_coating: Optional[str] = None
-    core_coating: Optional[str] = None
-    lettering_checking: Optional[str] = None
-    mould_core_visual_checking: Optional[str] = None
-    mould_core_coating_application: Optional[str] = None
-    core_setting_wall_thickness: Optional[str] = None
-    mould_core_preheating: Optional[str] = None
-    templates_checking: Optional[str] = None
-    core_setting_inspector: Optional[str] = None
-    closing_inspector: Optional[str] = None
-    pouring_inspector: Optional[str] = None
-
-class PouringDetails(BaseModel):
-    pouring_date: Optional[str] = None
-    pouring_time: Optional[str] = None
-    pouring_qty: Optional[str] = None
-    pouring_sec: Optional[str] = None
-    tapping_temp: Optional[str] = None
-    pouring_temp: Optional[str] = None
-    laddle_temp: Optional[str] = None
-    pouring_weight: Optional[str] = None
-    core_making: Optional[str] = None
+    actual_qty: Optional[str] = None
 
 class BottomSignatures(BaseModel):
     planned_by: Optional[str] = None
     pattern_inspected_by: Optional[str] = None
-    qa_parameters_checked_by: Optional[str] = None
+    qa_checked_by: Optional[str] = None
     core_inspected_by: Optional[str] = None
     mould_inspected_by: Optional[str] = None
     closing_inspected_by: Optional[str] = None
     pouring_inspected_by: Optional[str] = None
     pre_production_inspected_by: Optional[str] = None
 
-class QueueCardData(BaseModel):
-    page_number: int
-    document_headers: Optional[DocumentHeaders] = None
+class ProductionPlanDocument(BaseModel):
+    document_metadata: Optional[DocumentMetadata] = None
     product_details: Optional[ProductDetails] = None
-    sleeve_table: Optional[List[SleeveTableItem]] = []
-    printed_qa_requirements: Optional[List[str]] = []
-    handwritten_consumables_list: Optional[List[ConsumableItem]] = []
+    qa_parameters: Optional[List[str]] = []
+    moulding_details: Optional[MouldingDetails] = None
     inspection_parameters: Optional[InspectionParameters] = None
-    pouring_details: Optional[PouringDetails] = None
-    bottom_signatures: Optional[BottomSignatures] = None
+    refractory_sleeve_and_sand_consumption: Optional[RefractorySleeveAndSandConsumption] = None
+    materials_table: Optional[List[MaterialsTableItem]] = []
+    signatures: Optional[BottomSignatures] = None
 
-# --- BATCH TABLE PAGE MODEL ---
-class BatchTableRow(BaseModel):
-    p_order: Optional[str] = None
-    material_code: Optional[str] = None
-    material_description: Optional[str] = None
-    batch_no: Optional[str] = None
-    t_qty: Optional[str] = None
-    unit: Optional[str] = None
-    b_qty: Optional[str] = None
-    t_c_wt: Optional[str] = None
-
-# --- ROOT RESPONSE MODEL ---
 class DocumentExtractionResult(BaseModel):
-    queue_pages: List[QueueCardData]
-    batch_summary: List[BatchTableRow]
+    production_plans: List[ProductionPlanDocument]

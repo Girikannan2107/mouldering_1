@@ -46,7 +46,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  ReferenceLine
+  ReferenceLine,
+  Treemap,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
 import { documentApi } from '../services/api';
 
@@ -63,96 +69,184 @@ const COLORS = {
 
 const PIE_COLORS = [COLORS.orange, COLORS.cyan, COLORS.indigo, COLORS.teal, COLORS.amber, COLORS.rose];
 
+// Custom Treemap Node Renderer for Recharts
+const TreemapNode = (props) => {
+  const { x, y, width, height, name, value, fill } = props;
+  if (width < 30 || height < 20) return null;
+  const displayVal = value !== undefined ? value : 0;
+  const fillColor = fill || "#f97316";
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{
+          fill: fillColor,
+          stroke: '#fff',
+          strokeWidth: 1.5,
+          opacity: 0.9,
+        }}
+      />
+      {width > 60 && height > 30 && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#fff"
+          fontSize={10}
+          fontWeight="bold"
+        >
+          {name}
+        </text>
+      )}
+      {width > 60 && height > 55 && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2 + 15}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="rgba(255,255,255,0.85)"
+          fontSize={9}
+          fontFamily="monospace"
+        >
+          {displayVal.toLocaleString()} kg
+        </text>
+      )}
+    </g>
+  );
+};
+
+const PROCESS_FLOW_STEPS = [
+  {
+    stage: "Moulding",
+    description: "Creating the sand mould top & bottom sections.",
+    materials: "Silica Sand, Chromite Sand, Sinotherm Binder, Activator Catalyst",
+    costEstimate: "Silica: $0.15/kg, Chromite: $0.65/kg, Binder: $1.80/kg. Avg: ~$850 / heat.",
+    risk: "MED - Sand density and binder ratios must prevent expansion defects."
+  },
+  {
+    stage: "Core Making",
+    description: "Shaping internal cavities and passages using cores.",
+    materials: "Sinotherm Binder, Silica Sand, Core Sleeves, Venting Tubes",
+    costEstimate: "Resin binder systems + sand: ~$320 per heat.",
+    risk: "LOW - Core gas venting must be sufficient to prevent blowholes."
+  },
+  {
+    stage: "Pouring",
+    description: "Tapping the induction furnace and pouring liquid steel into the sand mould.",
+    materials: "Liquid Steel (ASTM A995 Gr. 6A or WCB Alloy)",
+    costEstimate: "Liquid steel alloy components: ~$1,450 to $3,800 depending on grade.",
+    risk: "HIGH - Tapping vs. pouring temperature mismatch causes thermal cracks and shrinkage."
+  },
+  {
+    stage: "Cooling",
+    description: "Controlled solidification of the metal within the sand mould.",
+    materials: "N/A (Ambient cooling inside yard)",
+    costEstimate: "Yard space overhead: ~$120/hr log basis.",
+    risk: "MED - Hot tearing can occur if cooling is too rapid or restraint is high."
+  },
+  {
+    stage: "Inspection",
+    description: "Shakeout, sand removal, and initial visual & dye penetrant surface inspection.",
+    materials: "Dye Penetrant developer kits, blasting media",
+    costEstimate: "Visual inspection hours & DPI solvents: ~$180.",
+    risk: "LOW - Surface cracks or sand inclusion are easily detected here."
+  },
+  {
+    stage: "QA Tests",
+    description: "Destructive and non-destructive testing of integral test bars.",
+    materials: "Test coupons, NDT RT radiographic plates",
+    costEstimate: "Radiographic testing & tensile coupon milling: ~$650.",
+    risk: "HIGH - Yield loss if tensile bars fail specs, requiring full heat scrap."
+  }
+];
+
+
 // Premium mock data for Moulding cycle logs to use if DB is empty
 const MOCK_MOULDING_DOCUMENTS = [
   {
     task_id: "mould_1",
     status: "COMPLETED",
     extracted_data: {
-      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0473", date: "2026-06-07" },
-      product_details: { customer: "FORGE.IQ CASTING CORP", grade: "CA6NM", casting_weight: "1280", description: "Runner Casing Vane" }, 
-      inspection_parameters: { mould_hardness_range: "85-92", core_hardness_range: "88-95", mould_coating: "Zircon Paint" },
-      pouring_details: { tapping_temperature: "1640", pouring_temperature: "1535, 1538", laddle_temp: "980", pouring_weight: "1350", duration: "92, 98", time: "04:12:00" },
-      tables: {
-        sleeves: [ { code: "SLV-120A", qty: "4" } ],
-        consumables: [ { item: "Ladle Lining Mortar", qty: "15 kg" } ],
-        batch_summary: [
-          { material_code: "PTN-CA6NM-A1", material_description: "Runner Casing Vane", batch_no: "B-88241", t_qty: "4", unit: "PCS" }
-        ]
+      document_metadata: { form_id: "UA/F/PP/01", planning_date: "09.05.2026", heat_no: "B23722-05", pouring_date: "10.05.2026" },
+      product_details: {
+        description: "STG CASE GPD 8X6X14 1/2 217",
+        customer: "RUHRPUMPEN INDIA (P) LTD",
+        grade: "6A",
+        casting_weight: "184.000",
+        liquid_weight: "330.000",
+        qty: "2.000",
+        sample_bulk: "Bulk",
+        finish_type: "Raw Casting",
+        pattern_code: "1020184Z",
+        pattern_serial_no: "126",
+        pattern_type: "MOUNT",
+        drawing_number: "7121080016/B",
+        part_no: "W641745500-99",
+        pcs_in_box: "00000",
+        no_of_core_boxes: "0",
+        no_of_cores: "0",
+        method_remarks: ""
       },
-      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
-    }
-  },
-  {
-    task_id: "mould_2",
-    status: "COMPLETED",
-    extracted_data: {
-      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0472", date: "2026-06-06" },
-      product_details: { customer: "ALSTOM HYDRO", grade: "WCB", casting_weight: "3100", description: "Impeller Hub" }, 
-      inspection_parameters: { mould_hardness_range: "82-88", core_hardness_range: "85-90", mould_coating: "Silica Wash" },
-      pouring_details: { tapping_temperature: "1620", pouring_temperature: "1520, 1525", laddle_temp: "960", pouring_weight: "3200", duration: "110, 115", time: "06:45:00" },
-      tables: {
-        sleeves: [ { code: "SLV-180B", qty: "2" } ],
-        consumables: [ { item: "Zircon Powder", qty: "8 kg" } ],
-        batch_summary: [
-          { material_code: "PTN-FP17-B3", material_description: "Impeller Hub", batch_no: "B-50771", t_qty: "2", unit: "PCS" }
-        ]
+      qa_parameters: [
+        "DPI RGT",
+        "QA PARAMETERS: SPECIFICATION-ASTM A995-2021 GR.6A",
+        "TDC REQUIRED",
+        "MTC-3.1",
+        "SPECIAL CHEMISTRY REQUIRED",
+        "TENSILE TEST REQUIRED",
+        "IMPACT TEST REQUIRED-CVN 2MM AT 46°C, MIN 35J AVG 45J",
+        "MICRO TEST REQUIRED-A923 METHOD A AT 400X",
+        "FERRITE TEST REQUIRED-AS PER E562 35 TO 65%",
+        "IGCT TEST REQUIRED-G48 METHOD A, 50°C, 24HRS, 1.0G/M² MAX",
+        "PREN AND CF-PREN WITH W=40.0 MIN, CF=35.00 MIN",
+        "INTEGRAL TEST BAR REQUIRED",
+        "NDT PARAMETERS:",
+        "RT ON CRITICAL AREA",
+        "DPI TEST REQUIRED",
+        "DIMENSION TEST INTERNAL",
+        "VISUAL INSPECTION:MSS-SP-55"
+      ],
+      moulding_details: {
+        top: { contractor: "LP", moulder: "Jothi", moulding_date: "8/5/26", moulding_time: "7:30pm", coating_details: "Sparklex 100A Isomol", coating_date: "8/5/26", coating_time: "10:40pm" },
+        bottom: { contractor: "LP", moulder: "vengatesh", moulding_date: "8/5/26", moulding_time: "8:00pm", coating_details: "Sparklex 100A Isomol", coating_date: "8/5/26", coating_time: "11:00pm" }
       },
-      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
-    }
-  },
-  {
-    task_id: "mould_3",
-    status: "COMPLETED",
-    extracted_data: {
-      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0471", date: "2026-06-05" },
-      product_details: { customer: "GE METALLURGY", grade: "CF8", casting_weight: "2000", description: "Guide Bearing Sleeve" }, 
-      inspection_parameters: { mould_hardness_range: "84-90", core_hardness_range: "86-92", mould_coating: "Zircon Paint" },
-      pouring_details: { tapping_temperature: "1630", pouring_temperature: "1530, 1532", laddle_temp: "975", pouring_weight: "2100", duration: "95, 99", time: "08:15:00" },
-      tables: {
-        sleeves: [ { code: "SLV-120A", qty: "3" } ],
-        consumables: [ { item: "Lining Mortar", qty: "10 kg" } ],
-        batch_summary: [
-          { material_code: "PTN-CA15-C2", material_description: "Guide Bearing Sleeve", batch_no: "B-33412", t_qty: "3", unit: "PCS" }
-        ]
+      inspection_parameters: {
+        pattern_finishing: "Yes",
+        process: "CO2/Noback",
+        chill_size_thickness: "Ensured ok",
+        chill_slot_blasted: "Yes",
+        chill_finishing: "checked ok",
+        sleeve_size_oven: "checked ok & 110°",
+        refactory_sleeve: "checked ok",
+        lettering_checking: "checked ok",
+        mould_checking: "checked ok"
       },
-      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
-    }
-  },
-  {
-    task_id: "mould_4",
-    status: "COMPLETED",
-    extracted_data: {
-      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0470", date: "2026-06-04" },
-      product_details: { customer: "SULZER INDIA", grade: "CF3", casting_weight: "1780", description: "Bottom Ring Segment" }, 
-      inspection_parameters: { mould_hardness_range: "85-92", core_hardness_range: "87-94", mould_coating: "Zircon Paint" },
-      pouring_details: { tapping_temperature: "1650", pouring_temperature: "1540, 1545", laddle_temp: "990", pouring_weight: "1850", duration: "88, 92", time: "09:30:00" },
-      tables: {
-        sleeves: [ { code: "SLV-180B", qty: "4" } ],
-        consumables: [ { item: "Mould Release Agent", qty: "4 L" } ],
-        batch_summary: [
-          { material_code: "PTN-CA6NM-D4", material_description: "Bottom Ring Segment", batch_no: "B-99120", t_qty: "4", unit: "PCS" }
-        ]
+      refractory_sleeve_and_sand_consumption: {
+        notes: "LP - 2NO, Nobake Process, Ivp Resin & Activator",
+        top: { chromite_sand: "60", silica_sand: "1815", sinotherm: "39", activator: "8", sparklex_100a_isomol: "6.400" },
+        bottom: { chromite_sand: "30", silica_sand: "907", sinotherm: "20", activator: "4", sparklex_100a_isomol: "3.200" }
       },
-      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
-    }
-  },
-  {
-    task_id: "mould_5",
-    status: "COMPLETED",
-    extracted_data: {
-      document_metadata: { form_id: "HT-CYCLE-LOG-V2", heat_no: "HT-2410-0469", date: "2026-06-03" },
-      product_details: { customer: "FLOWSERVE", grade: "CA15", casting_weight: "900", description: "Shaft Sleeve Casting" }, 
-      inspection_parameters: { mould_hardness_range: "80-86", core_hardness_range: "82-88", mould_coating: "Silica Wash" },
-      pouring_details: { tapping_temperature: "1610", pouring_temperature: "1510, 1515", laddle_temp: "950", pouring_weight: "950", duration: "80, 85", time: "10:15:00" },
-      tables: {
-        sleeves: [ { code: "SLV-120A", qty: "6" } ],
-        consumables: [ { item: "Zircon Powder", qty: "5 kg" } ],
-        batch_summary: [
-          { material_code: "PTN-CA15-E5", material_description: "Shaft Sleeve Casting", batch_no: "B-10884", t_qty: "6", unit: "PCS" }
-        ]
-      },
-      signatures: { planned_by: "M. Thika", qa_parameters_checked_by: "K. Kannan" }
+      materials_table: [
+        { sle_code: "100001", sle_name: "1000X1000X250 TOP", slv_qty: "387.000", actual_qty: "" },
+        { sle_code: "100002", sle_name: "1000X1000X200 BOTTOM", slv_qty: "310.000", actual_qty: "" },
+        { sle_code: "200160", sle_name: "40 MM ST SLEEVE (REFRACTORY SLEEVE)", slv_qty: "2.000", actual_qty: "" },
+        { sle_code: "200161", sle_name: "40 MM L BEND (REFRACTORY SLEEVE)", slv_qty: "4.000", actual_qty: "" }
+      ],
+      signatures: {
+        planned_by: "Signed",
+        pattern_inspected_by: "Unsigned",
+        qa_checked_by: "Unsigned",
+        core_inspected_by: "Unsigned",
+        mould_inspected_by: "Signed",
+        closing_inspected_by: "Unsigned",
+        pouring_inspected_by: "Unsigned",
+        pre_production_inspected_by: "Unsigned"
+      }
     }
   }
 ];
@@ -411,6 +505,12 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
   const [taskId, setTaskId] = useState(null);
   const [uploadedFilename, setUploadedFilename] = useState(null);
   const [nextPageLoading, setNextPageLoading] = useState(false);
+  
+  // Digitized Viewer Page navigation
+  const [activeViewerPage, setActiveViewerPage] = useState(0);
+  
+  // Interactive Foundry Process Flow step
+  const [activeFlowStep, setActiveFlowStep] = useState(0);
 
   // Database documents list
   const [dbDocuments, setDbDocuments] = useState([]);
@@ -437,15 +537,26 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
     fetchDbDocuments();
   }, [activeTab]);
 
+  // Reset page index on active document or result change
+  useEffect(() => {
+    setActiveViewerPage(0);
+  }, [result]);
+
   // Sync historical document selection with view state
   useEffect(() => {
     if (activeDocument && activeDocument.extracted_data) {
-      setResult(activeDocument.extracted_data);
-      setUploadedFilename(activeDocument.filename || null);
+      const ext = activeDocument.extracted_data;
+      setResult(ext);
+      setUploadedFilename(ext.filename || activeDocument.filename || null);
       setTaskId(activeDocument.task_id);
-      setCurrentPage(0);
-      setTotalPages(1);
-      setHasNextPage(false);
+      
+      const parsedPages = ext.pages || [ext];
+      const pagesCount = parsedPages.length;
+      const total = ext.total_pages || pagesCount || 1;
+      
+      setCurrentPage(pagesCount - 1);
+      setTotalPages(total);
+      setHasNextPage(pagesCount < total);
     }
   }, [activeDocument]);
 
@@ -516,26 +627,6 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
     }
   };
 
-  const handleRunSample = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    
-    // Simulate latency and then load a rich mock state for verification
-    setTimeout(() => {
-      const sampleMock = MOCK_MOULDING_DOCUMENTS[0].extracted_data;
-
-      setResult(sampleMock);
-      setUploadedFilename("sample_heat_report.pdf");
-      setTaskId("sample_" + Math.random().toString(36).substr(2, 9));
-      setCurrentPage(0);
-      setTotalPages(1);
-      setHasNextPage(false);
-      setLoading(false);
-      setActiveTab('viewer');
-    }, 2000);
-  };
-
   const handleProcessNextPage = async () => {
     if (currentPage >= totalPages - 1) return;
     setNextPageLoading(true);
@@ -549,6 +640,9 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
       setCurrentPage(data.current_page ?? nextPage);
       setTotalPages(data.total_pages ?? totalPages);
       setHasNextPage(data.has_next_page ?? false);
+      
+      // Auto-set the digitized page view index to the newly processed page
+      setActiveViewerPage(nextPage);
       
       // Navigate to viewer to show updated page data
       setActiveTab('viewer');
@@ -605,8 +699,50 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
       const heatNo = ext.document_info?.heat_no || ext.document_metadata?.heat_no || doc.task_id?.substring(0, 8) || "N/A";
       
       // Formats:
-      // 1. table_data (Old format)
-      if (ext.table_data && Array.isArray(ext.table_data)) {
+      // 1. Pages list schema (New multi-page format)
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach((page_data, pIdx) => {
+          if (!page_data) return;
+          const pageMetadata = page_data.document_metadata || {};
+          const pageProd = page_data.product_details || {};
+          const pageDate = pageMetadata.planning_date || pageMetadata.date || date;
+          const pageHeat = pageMetadata.heat_no || heatNo;
+          const castingWeight = parseFloat(String(pageProd.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          const liquidWeight = parseFloat(String(pageProd.liquid_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+          
+          flatPours.push({
+            date: pageDate,
+            heatNo: pageHeat,
+            grade: pageProd.grade ? String(pageProd.grade).toUpperCase().trim() : "WCB",
+            customer: pageProd.customer || "N/A",
+            plannedWeight: castingWeight,
+            pouredWeight: liquidWeight,
+            duration: 0,
+            sequence: pIdx + 1,
+            deltaTemp: 0
+          });
+        });
+      }
+      // 2. Production Plan schema (Our structured layout - single page fallback)
+      else if (ext.materials_table || ext.moulding_details) {
+        const prod = ext.product_details || {};
+        const castingWeight = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const liquidWeight = parseFloat(String(prod.liquid_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        
+        flatPours.push({
+          date,
+          heatNo,
+          grade: prod.grade ? String(prod.grade).toUpperCase().trim() : "WCB",
+          customer: prod.customer || "N/A",
+          plannedWeight: castingWeight,
+          pouredWeight: liquidWeight,
+          duration: 0,
+          sequence: 1,
+          deltaTemp: 0
+        });
+      }
+      // 3. table_data (Old format)
+      else if (ext.table_data && Array.isArray(ext.table_data)) {
         ext.table_data.forEach((row, idx) => {
           const pouredWeight = parseFloat(String(row.actual_liquid_poured_kg || 0).replace(/[^0-9.]/g, "")) || 0;
           const plannedWeight = parseFloat(String(row.planned_pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
@@ -708,176 +844,617 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
     return g || "Others";
   };
 
-  // KPIs
-  const kpiStats = useMemo(() => {
-    const heats = new Set(allDbDocuments.map(d => d.extracted_data?.document_info?.heat_no || d.extracted_data?.document_metadata?.heat_no || d.task_id));
-    const totalTonnage = allHistoricalPours.reduce((sum, p) => sum + p.pouredWeight, 0) / 1000.0;
-    const avgWeight = allHistoricalPours.length > 0 
-      ? Math.round(allHistoricalPours.reduce((sum, p) => sum + p.pouredWeight, 0) / allHistoricalPours.length) 
-      : 0;
-    const grades = new Set(allHistoricalPours.map(p => normalizeGrade(p.grade)));
-    
-    return {
-      totalHeats: heats.size,
-      totalTonnage: parseFloat(totalTonnage.toFixed(2)),
-      avgWeight,
-      gradesActive: grades.size
-    };
-  }, [allDbDocuments, allHistoricalPours]);
+  // KPIs will be calculated later in this file.
 
   // --- 6 ANALYTICS PLOTS ---
 
-  // 1. Weight * Quantity Cluster Scatter Chart
-  const scatterPlotData = useMemo(() => {
-    return allHistoricalPours.map((p, idx) => ({
-      index: idx + 1,
-      weight: p.pouredWeight,
-      grade: normalizeGrade(p.grade),
-      heat: p.heatNo
-    })).filter(p => p.weight > 0 && p.weight < 10000).slice(0, 100);
-  }, [allHistoricalPours]);
+  // 1. Metal Yield Analysis Data (Liquid Weight vs. Casting Weight)
+  const yieldAnalysisData = useMemo(() => {
+    const data = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+      
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const prod = pageData.product_details || {};
+        const castingWt = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const liquidWt = parseFloat(String(prod.liquid_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const grade = normalizeGrade(prod.grade);
+        const description = prod.description || "Unknown Product";
+        const heatNo = pageData.document_metadata?.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+        
+        if (castingWt > 0 && liquidWt > 0) {
+          const yieldPct = parseFloat(((castingWt / liquidWt) * 100).toFixed(2));
+          data.push({
+            heatNo,
+            description,
+            castingWeight: castingWt,
+            liquidWeight: liquidWt,
+            yield: yieldPct,
+            grade
+          });
+        }
+      };
 
-  // 2. Tonnage by Material Grade Bar Chart
-  const gradeBarData = useMemo(() => {
-    const gradesMap = {};
-    allHistoricalPours.forEach(p => {
-      const gName = normalizeGrade(p.grade);
-      gradesMap[gName] = (gradesMap[gName] || 0) + (p.pouredWeight / 1000.0);
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
     });
     
-    return Object.entries(gradesMap)
-      .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [allHistoricalPours]);
+    if (data.length === 0) {
+      return [
+        { heatNo: "B23722-01", description: "STG CASE GPD", castingWeight: 184, liquidWeight: 330, yield: 55.76, grade: "6A" },
+        { heatNo: "B23722-02", description: "VALVE BODY", castingWeight: 240, liquidWeight: 420, yield: 57.14, grade: "WCB" },
+        { heatNo: "B23722-03", description: "PUMP IMPELLER", castingWeight: 85, liquidWeight: 160, yield: 53.12, grade: "CF8" }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
 
-  // 3. Furnace Thermal Profile (Area Chart)
-  const thermalProfileData = useMemo(() => {
-    let targetDoc = null;
-    if (result) {
-      targetDoc = result;
-    } else if (allDbDocuments.length > 0) {
-      targetDoc = allDbDocuments[0].extracted_data;
+  // 2. Material Consumption Breakdown Data (Silica, Chromite, etc.)
+  const consumableUsageData = useMemo(() => {
+    const data = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const metadata = pageData.document_metadata || {};
+        const heatNo = metadata.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+        const sand = pageData.refractory_sleeve_and_sand_consumption || {};
+        
+        const top = sand.top || {};
+        const bottom = sand.bottom || {};
+        
+        const chromite = (parseFloat(String(top.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(bottom.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+        const silica = (parseFloat(String(top.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                        (parseFloat(String(bottom.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+        const sinotherm = (parseFloat(String(top.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0) +
+                           (parseFloat(String(bottom.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0);
+        const activator = (parseFloat(String(top.activator || 0).replace(/[^0-9.]/g, "")) || 0) +
+                           (parseFloat(String(bottom.activator || 0).replace(/[^0-9.]/g, "")) || 0);
+        const sparklex = (parseFloat(String(top.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(bottom.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0);
+
+        let sleevesCount = 0;
+        if (pageData.materials_table && Array.isArray(pageData.materials_table)) {
+          pageData.materials_table.forEach(m => {
+            const qty = parseFloat(String(m.actual_qty || m.slv_qty || 0).replace(/[^0-9.]/g, "")) || 0;
+            if (m.sle_name?.toLowerCase().includes("sleeve")) {
+              sleevesCount += qty;
+            }
+          });
+        }
+        
+        if (chromite > 0 || silica > 0) {
+          data.push({
+            heatNo,
+            chromite,
+            silica,
+            sinotherm,
+            activator,
+            sparklex,
+            sleeves: sleevesCount
+          });
+        }
+      };
+
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (data.length === 0) {
+      return [
+        { heatNo: "B23722-01", chromite: 90, silica: 2722, sinotherm: 59, activator: 12, sparklex: 9.6, sleeves: 6 },
+        { heatNo: "B23722-02", chromite: 60, silica: 1815, sinotherm: 39, activator: 8, sparklex: 6.4, sleeves: 4 },
+        { heatNo: "B23722-03", chromite: 120, silica: 3630, sinotherm: 78, activator: 16, sparklex: 12.8, sleeves: 8 }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
+
+  // 3. Quality Requirement Complexity Index Data (QA count)
+  const qaComplexityData = useMemo(() => {
+    const data = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const prod = pageData.product_details || {};
+        const productDesc = prod.description || "Unknown Product";
+        const heatNo = pageData.document_metadata?.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+        const qaParams = pageData.qa_parameters || [];
+        
+        const testCount = qaParams.filter(p => 
+          p && 
+          p.trim() !== "" && 
+          !p.toLowerCase().endsWith(":") && 
+          !p.toLowerCase().includes("specification")
+        ).length;
+
+        data.push({
+          product: `${productDesc.substring(0, 15)} (${heatNo})`,
+          testsCount: testCount || qaParams.length || 0
+        });
+      };
+
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (data.length === 0 || data.every(d => d.testsCount === 0)) {
+      return [
+        { product: "STG CASE GPD (B23722-01)", testsCount: 14 },
+        { product: "VALVE BODY (B23722-02)", testsCount: 8 },
+        { product: "PUMP IMPELLER (B23722-03)", testsCount: 5 }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
+
+  // 4. Customer-wise Production Complexity Data (Avg Weight vs. Avg Tests)
+  const customerComplexityData = useMemo(() => {
+    const customerMap = {};
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const prod = pageData.product_details || {};
+        const customer = prod.customer || "N/A";
+        const castingWt = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const qty = parseFloat(String(prod.qty || 1).replace(/[^0-9.]/g, "")) || 1;
+        const qaParams = pageData.qa_parameters || [];
+        const testCount = qaParams.filter(p => 
+          p && 
+          p.trim() !== "" && 
+          !p.toLowerCase().endsWith(":") && 
+          !p.toLowerCase().includes("specification")
+        ).length || qaParams.length || 0;
+
+        if (!customerMap[customer]) {
+          customerMap[customer] = {
+            customer,
+            totalCastingWeight: 0,
+            totalTests: 0,
+            totalQuantity: 0,
+            count: 0
+          };
+        }
+        
+        customerMap[customer].totalCastingWeight += castingWt * qty;
+        customerMap[customer].totalTests += testCount * qty;
+        customerMap[customer].totalQuantity += qty;
+        customerMap[customer].count += 1;
+      };
+
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    const data = Object.values(customerMap).map(c => ({
+      customer: c.customer,
+      avgWeight: Math.round(c.totalCastingWeight / c.totalQuantity),
+      avgTests: parseFloat((c.totalTests / c.totalQuantity).toFixed(1)),
+      totalQty: c.totalQuantity
+    })).filter(c => c.avgWeight > 0);
+
+    if (data.length === 0) {
+      return [
+        { customer: "RUHRPUMPEN INDIA", avgWeight: 184, avgTests: 14, totalQty: 10 },
+        { customer: "FLOWSERVE COPL", avgWeight: 320, avgTests: 8, totalQty: 15 },
+        { customer: "KBS PUMPS LTD", avgWeight: 95, avgTests: 5, totalQty: 30 }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
+
+  // 5. Production Risk Heatmap Data
+  const riskHeatmapData = useMemo(() => {
+    const data = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const prod = pageData.product_details || {};
+        const metadata = pageData.document_metadata || {};
+        
+        const description = prod.description || "Unknown Product";
+        const heatNo = metadata.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+        
+        const castingWt = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const liquidWt = parseFloat(String(prod.liquid_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const yieldPct = liquidWt > 0 ? (castingWt / liquidWt) * 100 : 60;
+        
+        const qaParams = pageData.qa_parameters || [];
+        const testCount = qaParams.filter(p => 
+          p && 
+          p.trim() !== "" && 
+          !p.toLowerCase().endsWith(":") && 
+          !p.toLowerCase().includes("specification")
+        ).length || qaParams.length || 0;
+        
+        const sand = pageData.refractory_sleeve_and_sand_consumption || {};
+        const silica = (parseFloat(String(sand.top?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                       (parseFloat(String(sand.bottom?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+                       
+        const qty = parseFloat(String(prod.qty || 1).replace(/[^0-9.]/g, "")) || 1;
+        
+        const yieldRisk = yieldPct < 55 ? "HIGH" : yieldPct < 60 ? "MED" : "LOW";
+        const qaRisk = testCount > 10 ? "HIGH" : testCount > 5 ? "MED" : "LOW";
+        const sandRisk = silica > 2000 ? "HIGH" : silica > 1000 ? "MED" : "LOW";
+        const qtyRisk = qty > 10 ? "HIGH" : qty > 5 ? "MED" : "LOW";
+        
+        const score = (yieldRisk === "HIGH" ? 3 : yieldRisk === "MED" ? 2 : 1) +
+                      (qaRisk === "HIGH" ? 3 : qaRisk === "MED" ? 2 : 1) +
+                      (sandRisk === "HIGH" ? 3 : sandRisk === "MED" ? 2 : 1) +
+                      (qtyRisk === "HIGH" ? 3 : qtyRisk === "MED" ? 2 : 1);
+                      
+        data.push({
+          product: `${description.substring(0, 15)} (${heatNo})`,
+          yield: yieldPct.toFixed(1) + "%",
+          yieldRisk,
+          qa: testCount,
+          qaRisk,
+          usage: silica + " kg",
+          sandRisk,
+          quantity: qty,
+          qtyRisk,
+          overallRisk: score >= 9 ? "HIGH" : score >= 6 ? "MED" : "LOW"
+        });
+      };
+
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (data.length === 0) {
+      return [
+        { product: "STG CASE GPD (B23722-01)", yield: "55.8%", yieldRisk: "MED", qa: 14, qaRisk: "HIGH", usage: "2722 kg", sandRisk: "HIGH", quantity: 2, qtyRisk: "LOW", overallRisk: "MED" },
+        { product: "VALVE BODY (B23722-02)", yield: "57.1%", yieldRisk: "MED", qa: 8, qaRisk: "MED", usage: "1815 kg", sandRisk: "MED", quantity: 1, qtyRisk: "LOW", overallRisk: "LOW" },
+        { product: "PUMP IMPELLER (B23722-03)", yield: "53.1%", yieldRisk: "HIGH", qa: 5, qaRisk: "LOW", usage: "3630 kg", sandRisk: "HIGH", quantity: 12, qtyRisk: "HIGH", overallRisk: "HIGH" }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
+
+  // 6. Material Cost Contribution Pareto Data
+  const costParetoData = useMemo(() => {
+    const priceMap = {
+      silica: 0.15,
+      chromite: 0.65,
+      sinotherm: 1.80,
+      activator: 3.50,
+      sparklex: 2.50,
+      sleeves: 12.00
+    };
+    
+    let totalSilica = 0;
+    let totalChromite = 0;
+    let totalSinotherm = 0;
+    let totalActivator = 0;
+    let totalSparklex = 0;
+    let totalSleeves = 0;
+
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const sand = pageData.refractory_sleeve_and_sand_consumption || {};
+        
+        totalSilica += (parseFloat(String(sand.top?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                       (parseFloat(String(sand.bottom?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+                       
+        totalChromite += (parseFloat(String(sand.top?.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                         (parseFloat(String(sand.bottom?.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+                         
+        totalSinotherm += (parseFloat(String(sand.top?.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(sand.bottom?.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0);
+                          
+        totalActivator += (parseFloat(String(sand.top?.activator || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(sand.bottom?.activator || 0).replace(/[^0-9.]/g, "")) || 0);
+                          
+        totalSparklex += (parseFloat(String(sand.top?.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0) +
+                         (parseFloat(String(sand.bottom?.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0);
+
+        if (pageData.materials_table && Array.isArray(pageData.materials_table)) {
+          pageData.materials_table.forEach(m => {
+            const qty = parseFloat(String(m.actual_qty || m.slv_qty || 0).replace(/[^0-9.]/g, "")) || 0;
+            if (m.sle_name?.toLowerCase().includes("sleeve")) {
+              totalSleeves += qty;
+            }
+          });
+        }
+      };
+
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (totalSilica === 0 && totalChromite === 0) {
+      totalSilica = 8167;
+      totalChromite = 270;
+      totalSinotherm = 176;
+      totalActivator = 36;
+      totalSparklex = 28.8;
+      totalSleeves = 18;
     }
 
-    if (!targetDoc) {
+    const costs = [
+      { name: "Silica Sand", cost: totalSilica * priceMap.silica },
+      { name: "Chromite Sand", cost: totalChromite * priceMap.chromite },
+      { name: "Sinotherm Binder", cost: totalSinotherm * priceMap.sinotherm },
+      { name: "Activator Catalyst", cost: totalActivator * priceMap.activator },
+      { name: "Sparklex Coating", cost: totalSparklex * priceMap.sparklex },
+      { name: "Refractory Sleeves", cost: totalSleeves * priceMap.sleeves }
+    ];
+
+    costs.sort((a, b) => b.cost - a.cost);
+    const totalCost = costs.reduce((sum, c) => sum + c.cost, 0);
+
+    let cumSum = 0;
+    const pareto = costs.map(c => {
+      const pct = (c.cost / totalCost) * 100;
+      cumSum += pct;
+      return {
+        name: c.name,
+        cost: Math.round(c.cost),
+        percentage: parseFloat(pct.toFixed(1)),
+        cumulative: parseFloat(Math.min(100, cumSum).toFixed(1))
+      };
+    });
+
+    return pareto;
+  }, [allDbDocuments]);
+
+  // 7. Yield Ranking Data
+  const yieldRankingData = useMemo(() => {
+    return [...yieldAnalysisData].sort((a, b) => b.yield - a.yield);
+  }, [yieldAnalysisData]);
+
+  // 8. Material Treemap Data
+  const materialTreemapData = useMemo(() => {
+    let totalSilica = 0;
+    let totalChromite = 0;
+    let totalSinotherm = 0;
+    let totalActivator = 0;
+    let totalSparklex = 0;
+    let totalSleeves = 0;
+
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const sand = pageData.refractory_sleeve_and_sand_consumption || {};
+        totalSilica += (parseFloat(String(sand.top?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                       (parseFloat(String(sand.bottom?.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+        totalChromite += (parseFloat(String(sand.top?.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                         (parseFloat(String(sand.bottom?.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+        totalSinotherm += (parseFloat(String(sand.top?.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(sand.bottom?.sinotherm || 0).replace(/[^0-9.]/g, "")) || 0);
+        totalActivator += (parseFloat(String(sand.top?.activator || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(sand.bottom?.activator || 0).replace(/[^0-9.]/g, "")) || 0);
+        totalSparklex += (parseFloat(String(sand.top?.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0) +
+                         (parseFloat(String(sand.bottom?.sparklex_100a_isomol || 0).replace(/[^0-9.]/g, "")) || 0);
+        if (pageData.materials_table && Array.isArray(pageData.materials_table)) {
+          pageData.materials_table.forEach(m => {
+            const qty = parseFloat(String(m.actual_qty || m.slv_qty || 0).replace(/[^0-9.]/g, "")) || 0;
+            if (m.sle_name?.toLowerCase().includes("sleeve")) {
+              totalSleeves += qty;
+            }
+          });
+        }
+      };
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (totalSilica === 0 && totalChromite === 0) {
+      totalSilica = 8167;
+      totalChromite = 270;
+      totalSinotherm = 176;
+      totalActivator = 36;
+      totalSparklex = 28.8;
+      totalSleeves = 18;
+    }
+
+    return [
+      { name: "Silica Sand", size: totalSilica, fill: COLORS.orange },
+      { name: "Chromite Sand", size: totalChromite, fill: COLORS.cyan },
+      { name: "Sinotherm Binder", size: totalSinotherm, fill: COLORS.indigo },
+      { name: "Activator Catalyst", size: totalActivator, fill: COLORS.teal },
+      { name: "Sparklex Coating", size: totalSparklex, fill: COLORS.amber },
+      { name: "Refractory Sleeves", size: totalSleeves, fill: COLORS.rose }
+    ].filter(d => d.size > 0).sort((a, b) => b.size - a.size);
+  }, [allDbDocuments]);
+
+  // 9. Material Intensity Data
+  const materialIntensityData = useMemo(() => {
+    const data = [];
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const metadata = pageData.document_metadata || {};
+        const heatNo = metadata.heat_no || doc.task_id?.substring(0, 8) || "N/A";
+        const prod = pageData.product_details || {};
+        const castingWt = parseFloat(String(prod.casting_weight || 0).replace(/[^0-9.]/g, "")) || 0;
+        const sand = pageData.refractory_sleeve_and_sand_consumption || {};
+        
+        const top = sand.top || {};
+        const bottom = sand.bottom || {};
+        const sandTotal = (parseFloat(String(top.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(bottom.silica_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(top.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0) +
+                          (parseFloat(String(bottom.chromite_sand || 0).replace(/[^0-9.]/g, "")) || 0);
+                          
+        if (castingWt > 0 && sandTotal > 0) {
+          const intensity = parseFloat((sandTotal / castingWt).toFixed(2));
+          data.push({
+            heatNo,
+            intensity,
+            sandTotal,
+            castingWt
+          });
+        }
+      };
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (data.length === 0) {
       return [
-        { name: "Start (Tap)", temp: 1600 },
-        { name: "Pour 1", temp: 1540 },
-        { name: "Pour 2", temp: 1530 },
-        { name: "Pour 3", temp: 1525 }
+        { heatNo: "B23722-01", intensity: 15.28, sandTotal: 2812, castingWt: 184 },
+        { heatNo: "B23722-02", intensity: 7.81, sandTotal: 1875, castingWt: 240 },
+        { heatNo: "B23722-03", intensity: 44.12, sandTotal: 3750, castingWt: 85 }
+      ];
+    }
+    return data;
+  }, [allDbDocuments]);
+
+  // 10. QA Radar Data
+  const qaRadarData = useMemo(() => {
+    let tensile = 0;
+    let impact = 0;
+    let ferrite = 0;
+    let igc = 0;
+    let dpi = 0;
+    let visual = 0;
+    let totalJobs = 0;
+
+    allDbDocuments.forEach((doc) => {
+      const ext = doc.extracted_data;
+      if (!ext) return;
+      const processPage = (pageData) => {
+        if (!pageData) return;
+        const qa = pageData.qa_parameters || [];
+        if (qa.length === 0) return;
+        totalJobs++;
+        
+        qa.forEach(param => {
+          const p = String(param).toUpperCase();
+          if (p.includes("TENSILE")) tensile++;
+          if (p.includes("IMPACT") || p.includes("CVN")) impact++;
+          if (p.includes("FERRITE") || p.includes("E562")) ferrite++;
+          if (p.includes("IGC") || p.includes("G48")) igc++;
+          if (p.includes("DPI") || p.includes("PENETRANT")) dpi++;
+          if (p.includes("VISUAL") || p.includes("MSS-SP") || p.includes("MSS SP")) visual++;
+        });
+      };
+      if (ext.pages && Array.isArray(ext.pages)) {
+        ext.pages.forEach(processPage);
+      } else {
+        processPage(ext);
+      }
+    });
+
+    if (totalJobs === 0) {
+      return [
+        { subject: 'Tensile', A: 100, B: 80, fullMark: 100 },
+        { subject: 'Impact', A: 67, B: 80, fullMark: 100 },
+        { subject: 'Ferrite', A: 67, B: 80, fullMark: 100 },
+        { subject: 'IGC', A: 67, B: 80, fullMark: 100 },
+        { subject: 'DPI', A: 100, B: 80, fullMark: 100 },
+        { subject: 'Visual', A: 100, B: 80, fullMark: 100 }
       ];
     }
 
-    const points = [];
-    const tappingTempStr = targetDoc.pouring_details?.tapping_temperature || targetDoc.pouring_details?.tapping_temp || "1600";
-    const tappingTemp = parseFloat(String(tappingTempStr).replace(/[^0-9.]/g, "")) || 1600;
-
-    points.push({ name: "Start (Tapping)", temp: tappingTemp });
-
-    // Handle array or list of temperatures
-    const pourTemps = targetDoc.pouring_details?.pouring_temperatures || [];
-    if (pourTemps.length > 0) {
-      pourTemps.forEach((t, i) => {
-        const val = parseFloat(String(t).replace(/[^0-9.]/g, ""));
-        if (val) points.push({ name: `Sequence ${i + 1}`, temp: val });
-      });
-    } else {
-      const pourTempStr = targetDoc.pouring_details?.pouring_temperature || "1540";
-      const tempsList = String(pourTempStr).split(',').map(t => parseFloat(t.replace(/[^0-9.]/g, ""))).filter(Boolean);
-      tempsList.forEach((t, i) => {
-        points.push({ name: `Sequence ${i + 1}`, temp: t });
-      });
-    }
-
-    const ladleTempStr = targetDoc.pouring_details?.ladle_temperature || targetDoc.pouring_details?.laddle_temp || "950";
-    const ladleTemp = parseFloat(String(ladleTempStr).replace(/[^0-9.]/g, "")) || 950;
-    
-    points.push({ name: "End (Ladle Cool)", temp: ladleTemp });
-    return points;
-  }, [result, allDbDocuments]);
-
-  // 4. 12-Week Throughput Trend (Line Chart)
-  const throughputData = useMemo(() => {
-    const dateMap = {};
-    allDbDocuments.forEach(doc => {
-      const ext = doc.extracted_data;
-      if (!ext) return;
-      let date = ext.document_info?.date || ext.document_metadata?.date || "";
-      if (!date || date === "N/A") return;
-      
-      date = date.replace(/[^0-9-/]/g, "").trim();
-      
-      let sumWeight = 0;
-      if (ext.table_data) {
-        sumWeight = ext.table_data.reduce((sum, r) => sum + (parseFloat(String(r.actual_liquid_poured_kg || 0).replace(/[^0-9.]/g, "")) || 0), 0);
-      } else if (ext.queue_pages) {
-        sumWeight = ext.queue_pages.reduce((sum, p) => sum + (parseFloat(String(p.pouring_details?.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0), 0);
-      } else if (ext.pouring_details) {
-        sumWeight = parseFloat(String(ext.pouring_details.pouring_weight || 0).replace(/[^0-9.]/g, "")) || 0;
-      }
-
-      if (!dateMap[date]) {
-        dateMap[date] = { count: 0, weight: 0 };
-      }
-      dateMap[date].count += 1;
-      dateMap[date].weight += (sumWeight / 1000.0);
-    });
-
-    return Object.entries(dateMap)
-      .map(([date, val]) => ({
-        date,
-        cycles: val.count,
-        tonnage: parseFloat(val.weight.toFixed(2))
-      }))
-      .slice(-10);
+    return [
+      { subject: 'Tensile', A: Math.round((tensile / totalJobs) * 100), B: 80, fullMark: 100 },
+      { subject: 'Impact', A: Math.round((impact / totalJobs) * 100), B: 80, fullMark: 100 },
+      { subject: 'Ferrite', A: Math.round((ferrite / totalJobs) * 100), B: 80, fullMark: 100 },
+      { subject: 'IGC', A: Math.round((igc / totalJobs) * 100), B: 80, fullMark: 100 },
+      { subject: 'DPI', A: Math.round((dpi / totalJobs) * 100), B: 80, fullMark: 100 },
+      { subject: 'Visual', A: Math.round((visual / totalJobs) * 100), B: 80, fullMark: 100 }
+    ];
   }, [allDbDocuments]);
 
-  // 5. Grade Distribution Share (Donut Chart)
-  const gradeDonutData = useMemo(() => {
-    const countMap = {};
-    allHistoricalPours.forEach(p => {
-      const gName = normalizeGrade(p.grade);
-      countMap[gName] = (countMap[gName] || 0) + 1;
-    });
+  // 11. QA Burden Card Stats
+  const qaBurdenStats = useMemo(() => {
+    const counts = qaComplexityData.map(d => d.testsCount);
+    const maxTests = counts.length > 0 ? Math.max(...counts) : 14;
+    const avgTests = counts.length > 0 ? parseFloat((counts.reduce((sum, c) => sum + c, 0) / counts.length).toFixed(1)) : 9.0;
+    const complexity = avgTests > 10 ? "HIGH" : avgTests > 5 ? "MED" : "LOW";
+    return {
+      maxTests,
+      avgTests,
+      complexity
+    };
+  }, [qaComplexityData]);
 
-    return Object.entries(countMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [allHistoricalPours]);
-
-  // 6. Temperature Loss (ΔT) / Process Stability (Control Chart)
-  const deltaTempData = useMemo(() => {
-    return allDbDocuments.map((doc, i) => {
-      const ext = doc.extracted_data;
-      if (!ext || !ext.pouring_details) return null;
-      
-      const tap = parseFloat(String(ext.pouring_details.tapping_temperature || ext.pouring_details.tapping_temp || 0).replace(/[^0-9.]/g, ""));
-      let pour = 0;
-      
-      if (ext.table_data && ext.table_data.length > 0) {
-        const temps = ext.table_data.map(r => parseFloat(String(r.pouring_temperature || 0).replace(/[^0-9.]/g, ""))).filter(Boolean);
-        pour = temps.length > 0 ? temps[0] : 0;
-      } else if (ext.pouring_details?.pouring_temperatures?.length > 0) {
-        pour = parseFloat(String(ext.pouring_details.pouring_temperatures[0]).replace(/[^0-9.]/g, ""));
-      } else {
-        const pourStr = ext.pouring_details.pouring_temperature || "";
-        const tempsList = String(pourStr).split(',').map(t => parseFloat(t.replace(/[^0-9.]/g, ""))).filter(Boolean);
-        pour = tempsList.length > 0 ? tempsList[0] : 0;
-      }
-
-      if (!tap || !pour || tap < 1400 || pour < 1400) return null;
-      const delta = tap - pour;
-
+  // 12. Risk Matrix Dataset
+  const riskMatrixData = useMemo(() => {
+    return riskHeatmapData.map(row => {
+      const yieldVal = parseFloat(row.yield.replace(/[^0-9.]/g, "")) || 50;
+      const qaVal = parseInt(row.qa) || 0;
+      const materialVal = parseFloat(row.usage.replace(/[^0-9.]/g, "")) || 0;
       return {
-        cycle: ext.document_info?.heat_no || ext.document_metadata?.heat_no || `Heat ${i+1}`,
-        delta,
-        ucl: 120,
-        lcl: 40,
-        cl: 80
+        ...row,
+        x: yieldVal,
+        y: qaVal,
+        z: materialVal
       };
-    }).filter(Boolean).slice(-15);
-  }, [allDbDocuments]);
+    });
+  }, [riskHeatmapData]);
+
+  // 13. Revised KPIs
+  const kpiStats = useMemo(() => {
+    const heats = new Set(allDbDocuments.map(d => d.extracted_data?.document_info?.heat_no || d.extracted_data?.document_metadata?.heat_no || d.task_id));
+    const totalTonnage = allHistoricalPours.reduce((sum, p) => sum + p.pouredWeight, 0) / 1000.0;
+    
+    const yieldsList = yieldAnalysisData.map(d => d.yield);
+    const avgYield = yieldsList.length > 0 ? parseFloat((yieldsList.reduce((sum, y) => sum + y, 0) / yieldsList.length).toFixed(1)) : 56.2;
+
+    const qaCounts = qaComplexityData.map(d => d.testsCount);
+    const avgQaScore = qaCounts.length > 0 ? parseFloat((qaCounts.reduce((sum, q) => sum + q, 0) / qaCounts.length).toFixed(1)) : 8.5;
+
+    const activeCustomers = new Set(allHistoricalPours.map(p => p.customer).filter(c => c && c !== "N/A"));
+    const highRiskJobs = riskHeatmapData.filter(r => r.overallRisk === "HIGH").length;
+
+    return {
+      totalHeats: heats.size,
+      totalTonnage: parseFloat(totalTonnage.toFixed(2)),
+      avgYield,
+      avgQaScore,
+      activeCustomers: activeCustomers.size || 3,
+      highRiskJobs
+    };
+  }, [allDbDocuments, allHistoricalPours, yieldAnalysisData, qaComplexityData, riskHeatmapData]);
 
 
   // -------------------------------------------------------------
@@ -915,18 +1492,17 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
       {/* 1. TAB: Ingest & Upload */}
       {activeTab === 'ingest' && (
         <div className="space-y-8 animate-fade-in">
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="max-w-3xl mx-auto">
             
             {/* Uploader Card */}
-            <div className="lg:col-span-2 bg-white dark:bg-[#0f172a] p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-[500px]">
+            <div className="bg-white dark:bg-[#0f172a] p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-[500px]">
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <UploadCloud className="text-[#f97316]" size={24} />
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Heat Treatment Cycle Report</h2>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Moulding/Pouring Production Plan</h2>
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-xs mb-8 leading-relaxed">
-                  Drop a scanned PDF or photograph of the cycle log. The parsing engine extracts metadata, process telemetry, pattern specs, and verification signatures.
+                  Drop a scanned PDF or photograph of the Production Plan. The parsing engine extracts metadata, product specifications, sand & consumable quantities, and quality check statuses.
                 </p>
                 
                 {/* Drag Drop Area */}
@@ -949,7 +1525,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                     <UploadCloud size={28} className="text-[#f97316]" />
                   </div>
                   <p className="text-slate-750 dark:text-slate-200 text-sm font-bold mb-1">
-                    {file ? file.name : "Drag & drop cycle report"}
+                    {file ? file.name : "Drag & drop Production Plan"}
                   </p>
                   <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider">
                     PDF - TIFF - JPG up to 40 MB
@@ -958,14 +1534,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
               </div>
               
               {/* Uploader Controls */}
-              <div className="mt-6 flex items-center justify-end gap-3.5">
-                <button
-                  onClick={handleRunSample}
-                  disabled={loading}
-                  className="px-6 py-2.5 rounded-xl border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:text-slate-900 dark:hover:text-white transition-colors"
-                >
-                  Run Sample
-                </button>
+              <div className="mt-6 flex items-center justify-end">
                 <button
                   onClick={handleUpload} 
                   disabled={loading || !file}
@@ -983,81 +1552,6 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                 </button>
               </div>
             </div>
-
-            {/* Right column sidebar widgets */}
-            <div className="space-y-6">
-              
-              {/* Profile Card */}
-              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <Sparkles size={16} className="text-[#f97316]" />
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">Engine Profile</h3>
-                </div>
-                <p className="text-slate-450 dark:text-slate-400 text-[11px] leading-relaxed mb-4">
-                  Cloud-hosted neural extraction tuned for foundry and heat treatment documentation.
-                </p>
-                <div className="space-y-3.5 text-xs">
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Model</span>
-                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">GPT-Forge-7B</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Avg latency</span>
-                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">~3.2 s / page</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold">F1 (validation)</span>
-                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold text-emerald-500">98.4%</strong>
-                  </div>
-                  <div className="flex justify-between pb-1.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold">Compliance</span>
-                    <strong className="text-slate-750 dark:text-slate-300 font-mono font-bold">ISO 9001 · AMS 2750</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Schema Targets */}
-              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <Layers size={16} className="text-[#f97316]" />
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">Schema Targets</h3>
-                </div>
-                <div className="space-y-3.5 text-xs">
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Metadata
-                    </span>
-                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block M</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Process Timeline
-                    </span>
-                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block P</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Pattern Specs
-                    </span>
-                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block P</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Main Table
-                    </span>
-                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block M</strong>
-                  </div>
-                  <div className="flex justify-between pb-1.5">
-                    <span className="text-slate-450 dark:text-slate-500 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Verification
-                    </span>
-                    <strong className="text-slate-400 dark:text-slate-500 font-mono font-bold">block V</strong>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
           </div>
 
           {loading && (
@@ -1086,6 +1580,13 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
       {activeTab === 'viewer' && (
         <div className="space-y-8 animate-fade-in">
           
+          {error && (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/10 border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl flex gap-3 text-xs">
+              <AlertCircle size={16} className="shrink-0 text-rose-500" />
+              <div><strong className="font-bold uppercase block mb-0.5">Extraction Failed</strong>{error}</div>
+            </div>
+          )}
+          
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5 gap-4">
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -1098,6 +1599,25 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             
             {result ? (
               <div className="flex items-center gap-3">
+                {hasNextPage && (
+                  <button
+                    onClick={handleProcessNextPage}
+                    disabled={nextPageLoading}
+                    className="px-4 py-1.5 bg-[#f97316] text-white hover:bg-[#ea580c] disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-1.5 hover:scale-[1.02] shadow-orange-500/10 animate-pulse"
+                  >
+                    {nextPageLoading ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={12} fill="currentColor" />
+                        <span>Process Page {currentPage + 2} of {totalPages}</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 border border-orange-200 text-[#f97316] dark:bg-orange-500/10 dark:border-orange-500/20 uppercase tracking-wide">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]" /> Parsed
                 </span>
@@ -1129,200 +1649,390 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                 Go to Ingest
               </button>
             </div>
-          ) : (
-            <div className="space-y-6">
-              
-              {/* BLOCK A: Metadata */}
-              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block A · Metadata</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-xs">
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Document Title</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.document_metadata?.form_id || "Heat Treatment Cycle Report"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Cycle No</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-bold text-[#f97316]">{result.document_metadata?.heat_no || result.document_info?.heat_no || "N/A"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Cycle Date</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.document_metadata?.date || result.document_info?.date || "N/A"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Furnace</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">
-                      {result.product_details?.customer || result.document_info?.ladle_capacity || "Furnace 03 - Bogie Hearth"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Max Thickness</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-semibold">
-                      {result.pouring_details?.laddle_temp ? `${result.pouring_details.laddle_temp} °C` : "182 mm"}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* BLOCK B: Process Timeline */}
-              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block B · Process Timeline</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-6 text-xs">
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">F/C On Time</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.time || "04:12:00"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Temp Reached At</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">
-                      {result.pouring_details?.tapping_temperature ? `${result.pouring_details.tapping_temperature}°C` : "07:48:22 / 1040°C"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">F/C Off Time</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.time ? "11:30:00" : "11:30:00"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Quenching Seconds</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{result.pouring_details?.duration ? `${result.pouring_details.duration} s` : "92 s"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Water Temp Before</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">28.4 °C</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Water Temp After</span>
-                    <strong className="text-slate-800 dark:text-slate-200 font-mono font-semibold">47.9 °C</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* BLOCK C: Pattern Specifications */}
-              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block C · Pattern Specifications</span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  {/* Map the main item parsed under product_details */}
-                  {result.product_details && (
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
-                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
-                        01
-                      </span>
-                      <div className="text-[10px] text-[#f97316] font-bold uppercase tracking-wider mb-1">
-                        {result.product_details.grade || "ALLOY"}
-                      </div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
-                        {result.product_details.description || "Moulding Job Item"}
-                      </div>
-                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
-                        Weight: <strong>{result.product_details.casting_weight || "1280"} kg</strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sleeeves or sub-materials if available */}
-                  {(result.tables?.sleeves || []).map((s, idx) => (
-                    <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
-                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
-                        0{idx + 2}
-                      </span>
-                      <div className="text-[10px] text-cyan-500 font-bold uppercase tracking-wider mb-1">
-                        {s.code || "SLEEVE"}
-                      </div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
-                        Sleeve Component
-                      </div>
-                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
-                        Qty: <strong>{s.qty || s.slv_qty} units</strong>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Consumables if available */}
-                  {(result.tables?.consumables || []).slice(0, 2).map((c, idx) => (
-                    <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl relative overflow-hidden">
-                      <span className="absolute right-0 top-0 text-[32px] font-extrabold text-slate-100 dark:text-slate-800/40 pointer-events-none select-none font-mono">
-                        0{idx + 3}
-                      </span>
-                      <div className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider mb-1">
-                        CONSUMABLE
-                      </div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-8 mb-2">
-                        {c.item}
-                      </div>
-                      <div className="text-[11px] text-slate-450 dark:text-slate-400 font-medium">
-                        Qty: <strong>{c.qty || c.quantity}</strong>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* BLOCK D: Main Table / batch_summary */}
+          ) : (() => {
+            const pagesList = result.pages || [result];
+            const pageData = pagesList[activeViewerPage] || pagesList[0] || {};
+            
+            return (
               <div className="space-y-6">
                 
-                {result.table_data && (
+                {/* Pages Navigation Bar */}
+                {(pagesList.length > 1 || totalPages > 1) && (
+                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-3 rounded-2xl mb-6 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} className="text-[#f97316]" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Document Pages: <strong className="text-[#f97316] font-mono">{pagesList.length} parsed {totalPages > pagesList.length ? `(out of ${totalPages})` : ''}</strong>
+                      </span>
+                    </div>
+                    {pagesList.length > 1 && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          disabled={activeViewerPage === 0}
+                          onClick={() => setActiveViewerPage(prev => prev - 1)}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-650 dark:text-slate-400"
+                        >
+                          Previous Page
+                        </button>
+                        <span className="text-xs font-mono font-bold text-[#f97316]">
+                          Viewing Page {activeViewerPage + 1} of {pagesList.length}
+                        </span>
+                        <button
+                          disabled={activeViewerPage === pagesList.length - 1}
+                          onClick={() => setActiveViewerPage(prev => prev + 1)}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-650 dark:text-slate-400"
+                        >
+                          Next Page
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* BLOCK A: Metadata */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block A · Metadata</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Document Title</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.document_metadata?.form_id || "Production Plan"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Heat No</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-mono font-bold text-[#f97316]">{pageData.document_metadata?.heat_no || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Planning Date</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.document_metadata?.planning_date || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pouring Date</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {pageData.document_metadata?.pouring_date || "N/A"}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCK B: Product Details */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block B · Product Details</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Description</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.description || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Customer</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.customer || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Grade</span>
+                      <strong className="text-[#f97316] font-bold">{pageData.product_details?.grade || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Casting Weight (kg)</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.casting_weight || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Liquid Weight (kg)</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.liquid_weight || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Qty</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.qty || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Sample / Bulk</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.sample_bulk || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Finish Type</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.finish_type || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pattern Code</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.pattern_code || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pattern Serial No</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.pattern_serial_no || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pattern Type</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.pattern_type || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Drawing Number</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.drawing_number || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Part No</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.part_no || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pcs In Box</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.pcs_in_box || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">No of Core Boxes</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.no_of_core_boxes || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">No of Cores</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.no_of_cores || "N/A"}</strong>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Method Remarks</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.product_details?.method_remarks || "N/A"}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCK C: QA Parameters Checklist */}
+                {pageData.qa_parameters && pageData.qa_parameters.length > 0 && (
+                  <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                    <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block C · QA Parameters Checklist</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {pageData.qa_parameters.map((param, i) => (
+                        <span key={i} className="inline-block px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {param}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* BLOCK D: Moulding & Coating Details */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block D · Moulding & Coating Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
+                      <h4 className="text-xs font-bold text-[#f97316] uppercase tracking-wider mb-3">Top Moulding</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Contractor</span><strong>{pageData.moulding_details?.top?.contractor || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Moulder</span><strong>{pageData.moulding_details?.top?.moulder || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Moulding Time</span><strong>{pageData.moulding_details?.top?.moulding_date || ""} {pageData.moulding_details?.top?.moulding_time || ""}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Coating Details</span><strong>{pageData.moulding_details?.top?.coating_details || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Coating Time</span><strong>{pageData.moulding_details?.top?.coating_date || ""} {pageData.moulding_details?.top?.coating_time || ""}</strong></div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
+                      <h4 className="text-xs font-bold text-cyan-500 uppercase tracking-wider mb-3">Bottom Moulding</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Contractor</span><strong>{pageData.moulding_details?.bottom?.contractor || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Moulder</span><strong>{pageData.moulding_details?.bottom?.moulder || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Moulding Time</span><strong>{pageData.moulding_details?.bottom?.moulding_date || ""} {pageData.moulding_details?.bottom?.moulding_time || ""}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Coating Details</span><strong>{pageData.moulding_details?.bottom?.coating_details || "N/A"}</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Coating Time</span><strong>{pageData.moulding_details?.bottom?.coating_date || ""} {pageData.moulding_details?.bottom?.coating_time || ""}</strong></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCK E: Inspection Parameters */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block E · Quality & Mould Inspection Parameters</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-xs">
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Pattern Finishing</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.pattern_finishing || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Process Type</span>
+                      <strong className="text-[#f97316] font-bold">{pageData.inspection_parameters?.process || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Chill Size & Thickness</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.chill_size_thickness || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Chill Slot Blasted</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.chill_slot_blasted || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Chill Finishing</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.chill_finishing || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Sleeve Size & Oven Temp</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.sleeve_size_oven || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Refractory Sleeve</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.refactory_sleeve || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Lettering Checking</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.lettering_checking || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[9px] mb-1">Mould Checking</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.inspection_parameters?.mould_checking || "N/A"}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCK F: Sand Consumption & Notes */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block F · Sand Consumption Details</span>
+                    {pageData.refractory_sleeve_and_sand_consumption?.notes && (
+                      <span className="text-[10px] bg-orange-100 dark:bg-orange-950/20 text-[#f97316] font-bold px-2 py-0.5 rounded">
+                        {pageData.refractory_sleeve_and_sand_consumption.notes}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
+                      <h4 className="text-xs font-bold text-[#f97316] uppercase tracking-wider mb-3">Top Consumption</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Chromite Sand</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.top?.chromite_sand || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Silica Sand</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.top?.silica_sand || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Sinotherm</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.top?.sinotherm || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Activator</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.top?.activator || "0"} L</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Sparklex 100A Isomol</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.top?.sparklex_100a_isomol || "0"} L</strong></div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
+                      <h4 className="text-xs font-bold text-cyan-500 uppercase tracking-wider mb-3">Bottom Consumption</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Chromite Sand</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.bottom?.chromite_sand || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Silica Sand</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.bottom?.silica_sand || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Sinotherm</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.bottom?.sinotherm || "0"} kg</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Activator</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.bottom?.activator || "0"} L</strong></div>
+                        <div><span className="text-slate-400 block font-semibold text-[9px] uppercase">Sparklex 100A Isomol</span><strong>{pageData.refractory_sleeve_and_sand_consumption?.bottom?.sparklex_100a_isomol || "0"} L</strong></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCK G: Materials & Sleeve Consumption Details */}
+                {pageData.materials_table && pageData.materials_table.length > 0 && (
                   <FioriSectionTable 
-                    title="Block D · Main Cycle Table" 
-                    data={result.table_data} 
+                    title="Block G · Materials & Sleeve Consumption Details" 
+                    data={pageData.materials_table} 
                     icon={Scale} 
                   />
                 )}
 
-                {result.tables?.batch_summary && (
-                  <FioriSectionTable 
-                    title="Block D · Batch Production Summary" 
-                    data={result.tables.batch_summary} 
-                    icon={Scale} 
-                  />
-                )}
+                {/* BLOCK H: Verification Signatures */}
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block H · Verification Signatures</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Planned By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.planned_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.planned_by?.toLowerCase().includes("signed") && !pageData.signatures?.planned_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+                    
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Pattern Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.pattern_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.pattern_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.pattern_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">QA Checked By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.qa_checked_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.qa_checked_by?.toLowerCase().includes("signed") && !pageData.signatures?.qa_checked_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Core Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.core_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.core_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.core_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Mould Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.mould_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.mould_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.mould_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Closing Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.closing_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.closing_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.closing_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Pouring Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.pouring_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.pouring_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.pouring_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
+                      <div>
+                        <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Pre Production Inspected By</span>
+                        <strong className="text-slate-800 dark:text-slate-200 font-semibold">{pageData.signatures?.pre_production_inspected_by || "Unsigned"}</strong>
+                      </div>
+                      {pageData.signatures?.pre_production_inspected_by?.toLowerCase().includes("signed") && !pageData.signatures?.pre_production_inspected_by?.toLowerCase().includes("unsigned") ? (
+                        <CheckCircle className="text-emerald-500" size={16} />
+                      ) : (
+                        <AlertCircle className="text-slate-350" size={16} />
+                      )}
+                    </div>
+                  </div>
+                </div>
 
               </div>
-
-              {/* BLOCK E: Verification Signatures */}
-              <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#f97316]">Block E · Verification Signatures</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Planned By</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.planned_by || "M. Thika"}</strong>
-                    </div>
-                    <CheckCircle className="text-emerald-500" size={16} />
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">QA Checked By</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.qa_parameters_checked_by || "K. Kannan"}</strong>
-                    </div>
-                    <CheckCircle className="text-emerald-500" size={16} />
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Moulding Inspector</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">{result.signatures?.pouring_inspected_by || "G. Rajan"}</strong>
-                    </div>
-                    <CheckCircle className="text-emerald-500" size={16} />
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-200/40 dark:border-slate-800/30">
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider text-[8px] mb-1">Verification Status</span>
-                      <strong className="text-emerald-600 dark:text-emerald-450 font-bold uppercase tracking-wider text-[10px]">Verified Safe</strong>
-                    </div>
-                    <ShieldCheck className="text-emerald-500 animate-pulse" size={18} />
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       )}
@@ -1335,13 +2045,13 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Operational Analytics</h2>
               <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-                Cluster behavior of casting pours, thermal cycle profiles, and tonnage distribution across alloy grades.
+                Foundry-specific key performance indicators, material yields, quality checklists, and production risks.
               </p>
             </div>
             
             <button
               onClick={fetchDbDocuments}
-              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 uppercase transition-all shadow-sm"
+              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-slate-650 dark:text-slate-355 rounded-xl text-xs font-bold flex items-center gap-1.5 uppercase transition-all shadow-sm"
               title="Reload database metrics"
             >
               <RotateCcw size={13} />
@@ -1349,79 +2059,127 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             </button>
           </div>
 
-          {/* KPI Widget Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {/* Row 1 — Executive KPIs (6 columns) */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             
-            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Database size={40} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Total Heats</span>
-              <strong className="text-slate-900 dark:text-white text-3xl font-mono tracking-tight font-extrabold">{kpiStats.totalHeats}</strong>
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><Database size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Heats</span>
+              <strong className="text-slate-900 dark:text-white text-2xl font-mono tracking-tight font-extrabold">{kpiStats.totalHeats}</strong>
             </div>
 
-            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Scale size={40} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Total Tonnage</span>
-              <strong className="text-[#f97316] text-3xl font-mono tracking-tight font-extrabold">{kpiStats.totalTonnage} t</strong>
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><Scale size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Tonnage</span>
+              <strong className="text-[#f97316] text-2xl font-mono tracking-tight font-extrabold">{kpiStats.totalTonnage} t</strong>
             </div>
 
-            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Activity size={40} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Avg casting weight</span>
-              <strong className="text-slate-900 dark:text-white text-3xl font-mono tracking-tight font-extrabold">{kpiStats.avgWeight} kg</strong>
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><TrendingUp size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg Yield %</span>
+              <strong className="text-slate-900 dark:text-white text-2xl font-mono tracking-tight font-extrabold">{kpiStats.avgYield}%</strong>
             </div>
 
-            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-              <span className="absolute right-4 bottom-4 text-slate-100 dark:text-slate-800/20 font-extrabold select-none"><Layers size={40} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-1">Grades Active</span>
-              <strong className="text-[#f97316] text-3xl font-mono tracking-tight font-extrabold">{kpiStats.gradesActive}</strong>
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><ShieldCheck size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg QA Score</span>
+              <strong className="text-[#f97316] text-2xl font-mono tracking-tight font-extrabold">{kpiStats.avgQaScore} tests</strong>
+            </div>
+
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><Layers size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Active Customers</span>
+              <strong className="text-slate-900 dark:text-white text-2xl font-mono tracking-tight font-extrabold">{kpiStats.activeCustomers}</strong>
+            </div>
+
+            <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+              <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><AlertCircle size={32} className="stroke-[1]" /></span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">High Risk Jobs</span>
+              <strong className="text-rose-500 text-2xl font-mono tracking-tight font-extrabold">{kpiStats.highRiskJobs}</strong>
             </div>
 
           </div>
 
-          {/* Analytics Charts Grid - 6 Meaningful Charts */}
+          {/* Row 2 — Production Efficiency */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            {/* Chart 1: Weight * Quantity Cluster */}
+            {/* Yield circular progress Gauge */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Weight × Quantity Cluster</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Casting Scatter</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Yield Efficiency</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Overall vs. Target</span>
                 </div>
-                <div className="h-[280px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: -15 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
-                      <XAxis type="number" dataKey="index" name="Casting index" stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                      <YAxis type="number" dataKey="weight" name="Poured weight" unit=" kg" stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                      <ZAxis type="number" range={[65, 65]} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} />
-                      <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
-                      <Scatter name="Casting Weight Cluster" data={scatterPlotData} fill={COLORS.orange} />
-                    </ScatterChart>
-                  </ResponsiveContainer>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-around py-4 gap-6">
+                  {/* SVG Gauge */}
+                  <div className="relative w-40 h-40">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      {/* Background track */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-slate-100 dark:stroke-slate-800"
+                        strokeWidth="10"
+                        fill="transparent"
+                      />
+                      {/* Foreground indicator */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-[#f97316]"
+                        strokeWidth="10"
+                        fill="transparent"
+                        strokeDasharray="251.2"
+                        strokeDashoffset={251.2 - (251.2 * kpiStats.avgYield) / 100}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-mono font-extrabold text-slate-850 dark:text-white">{kpiStats.avgYield}%</span>
+                      <span className="text-[9px] text-slate-455 dark:text-slate-550 uppercase tracking-wider font-bold">Process Avg</span>
+                    </div>
+                  </div>
+
+                  {/* Yield statistics */}
+                  <div className="space-y-4 text-xs font-semibold text-slate-655 dark:text-slate-350">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/40 dark:border-slate-800/40 w-56">
+                      <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wide block mb-1">Target Yield</span>
+                      <strong className="text-slate-800 dark:text-white font-mono text-base">70.0%</strong>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/40 dark:border-slate-800/40 w-56">
+                      <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wide block mb-1">Target Gap</span>
+                      <strong className={`font-mono text-base ${kpiStats.avgYield >= 70 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {(kpiStats.avgYield - 70.0).toFixed(1)}%
+                      </strong>
+                    </div>
+                  </div>
                 </div>
+
               </div>
             </div>
 
-            {/* Chart 2: Tonnage by Material Grade */}
+            {/* Yield Ranking horizontal bar chart */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Tonnage by Material Grade</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Tonnage</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Yield Ranking</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Yield % by individual Heat</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={gradeBarData} margin={{ top: 10, right: 10, bottom: 15, left: -25 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
-                      <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                      <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                    <BarChart layout="vertical" data={yieldRankingData} margin={{ top: 10, right: 10, bottom: 10, left: -25 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-850" horizontal={false} />
+                      <XAxis type="number" stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[0, 100]} />
+                      <YAxis dataKey="heatNo" type="category" stroke="#94a3b8" tick={{ fontSize: 10 }} width={75} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="value" name="Tonnage (tons)" fill={COLORS.orange} radius={[4, 4, 0, 0]}>
-                        {gradeBarData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
+                      <Bar dataKey="yield" name="Yield %" fill={COLORS.orange} radius={[0, 4, 4, 0]} barSize={16}>
+                        {yieldRankingData.map((entry, idx) => {
+                          const c = entry.yield < 55 ? COLORS.rose : entry.yield < 60 ? COLORS.amber : COLORS.teal;
+                          return <Cell key={idx} fill={c} />;
+                        })}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1429,118 +2187,313 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
               </div>
             </div>
 
-            {/* Chart 3: Furnace Thermal Profile */}
+          </div>
+
+          {/* Row 3 — Material Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* Treemap instead of stacked bars */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Furnace Thermal Profile</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Temp Drop Sequence</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Consumable Dominance</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Material weight proportion</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={thermalProfileData} margin={{ top: 10, right: 10, bottom: 15, left: -15 }}>
-                      <defs>
-                        <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={COLORS.orange} stopOpacity={0.3} />
-                          <stop offset="95%" stopColor={COLORS.orange} stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
-                      <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                      <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[800, 1700]} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="temp" name="Temperature (°C)" stroke={COLORS.orange} strokeWidth={2.5} fillOpacity={1} fill="url(#colorTemp)" />
-                    </AreaChart>
+                    <Treemap
+                      data={materialTreemapData}
+                      dataKey="size"
+                      stroke="#fff"
+                      content={<TreemapNode />}
+                    />
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
 
-            {/* Chart 4: 12-Week Throughput Trend */}
+            {/* Material Intensity comparison */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Throughput Trend</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Tonnage & Cycles</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Material Intensity</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Consumable sand (kg) / Casting (kg)</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={throughputData} margin={{ top: 10, right: 10, bottom: 15, left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
-                      <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                    <BarChart data={materialIntensityData} margin={{ top: 15, right: 10, bottom: 15, left: -25 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-850" />
+                      <XAxis dataKey="heatNo" stroke="#94a3b8" tick={{ fontSize: 10 }} />
                       <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="tonnage" name="Tonnage (t)" stroke={COLORS.orange} strokeWidth={2.5} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="cycles" name="Cycles count" stroke={COLORS.cyan} strokeWidth={2} />
-                    </LineChart>
+                      <Bar dataKey="intensity" name="Intensity Ratio" fill={COLORS.teal} radius={[4, 4, 0, 0]} barSize={32} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
 
-            {/* Chart 5: Grade Distribution Share */}
+          </div>
+
+          {/* Row 4 — QA Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* Radar Chart */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Grade Distribution Share</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Active Alloys</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">QA Requirement Distribution</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Test Specification Presence %</span>
                 </div>
                 <div className="h-[280px] w-full mt-4 flex items-center justify-center">
-                  {gradeDonutData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={gradeDonutData}
-                          cx="50%"
-                          cy="48%"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {gradeDonutData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: 10 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-slate-400 text-xs">No grade metrics available.</div>
-                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={qaRadarData}>
+                      <PolarGrid stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#94a3b8" tick={{ fontSize: 8 }} />
+                      <Radar name="Presence %" dataKey="A" stroke={COLORS.indigo} fill={COLORS.indigo} fillOpacity={0.4} />
+                      <Tooltip />
+                    </RadarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
 
-            {/* Chart 6: Temperature Loss (ΔT) Control Chart */}
+            {/* QA Burden Score Card */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Ladle Temp Loss Control (ΔT)</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Process Stability</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">QA Burden Index</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Quality complexity tiering</span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-around py-4 gap-6">
+                  {/* Gauge indicator */}
+                  <div className="relative w-40 h-40">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-slate-100 dark:stroke-slate-800"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-[#6366f1]"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray="251.2"
+                        strokeDashoffset={251.2 - (251.2 * qaBurdenStats.avgTests * 5) / 100} // mapping to 20 max tests
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-mono font-extrabold text-slate-855 dark:text-white">{qaBurdenStats.avgTests}</span>
+                      <span className="text-[9px] text-slate-455 dark:text-slate-555 uppercase tracking-wider font-bold">Avg Tests</span>
+                    </div>
+                  </div>
+
+                  {/* KPI indicators */}
+                  <div className="space-y-3 font-semibold text-xs text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center justify-between w-56 p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800 rounded-xl">
+                      <span>Critical Tests Peak:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-white">{qaBurdenStats.maxTests}</span>
+                    </div>
+                    <div className="flex items-center justify-between w-56 p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800 rounded-xl">
+                      <span>Average Tests Count:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-white">{qaBurdenStats.avgTests}</span>
+                    </div>
+                    <div className="flex items-center justify-between w-56 p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800 rounded-xl">
+                      <span>Complexity Rating:</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider ${
+                        qaBurdenStats.complexity === "HIGH" 
+                          ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                          : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                      }`}>
+                        {qaBurdenStats.complexity}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          {/* Row 5 — Risk Intelligence */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* Risk Status Table */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Operational Risk status</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Yield, QA & Materials status indicator</span>
+                </div>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-xs font-semibold text-left">
+                    <thead className="bg-slate-50/50 dark:bg-slate-950/40 text-slate-450 uppercase text-[9px] tracking-wider sticky top-0 border-b border-slate-100 dark:border-slate-800">
+                      <tr>
+                        <th className="px-4 py-2.5">Heat Job</th>
+                        <th className="px-4 py-2.5 text-center">Yield</th>
+                        <th className="px-4 py-2.5 text-center">QA</th>
+                        <th className="px-4 py-2.5 text-center">Material</th>
+                        <th className="px-4 py-2.5 text-center">Overall Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40 text-slate-700 dark:text-slate-350">
+                      {riskHeatmapData.map((row, idx) => {
+                        const getDot = (risk) => {
+                          if (risk === "HIGH") return <span className="w-3 h-3 rounded-full bg-rose-500 inline-block border-2 border-white dark:border-slate-900 shadow shadow-rose-500/40" title="High Risk" />;
+                          if (risk === "MED") return <span className="w-3 h-3 rounded-full bg-amber-500 inline-block border-2 border-white dark:border-slate-900 shadow shadow-amber-500/40" title="Medium Risk" />;
+                          return <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block border-2 border-white dark:border-slate-900 shadow shadow-emerald-500/40" title="Low Risk" />;
+                        };
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/10">
+                            <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-mono font-bold">{row.product.split(' ').pop().replace(/[()]/g, "")}</td>
+                            <td className="px-4 py-3 text-center">{getDot(row.yieldRisk)}</td>
+                            <td className="px-4 py-3 text-center">{getDot(row.qaRisk)}</td>
+                            <td className="px-4 py-3 text-center">{getDot(row.sandRisk)}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider ${
+                                row.overallRisk === "HIGH" 
+                                  ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                                  : row.overallRisk === "MED"
+                                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                    : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              }`}>
+                                {row.overallRisk}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Production Risk Matrix Scatter Bubble Chart */}
+            <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Production Risk Matrix</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Bubble: Consumables, X: Yield %, Y: QA Specs</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
-                  {deltaTempData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={deltaTempData} margin={{ top: 15, right: 10, bottom: 15, left: -25 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
-                        <XAxis dataKey="cycle" stroke="#94a3b8" tick={{ fontSize: 9 }} />
-                        <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[0, 160]} />
-                        <Tooltip content={<CustomTooltip />} />
-                        
-                        <ReferenceLine y={120} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "UCL (120°C)", fill: "#ef4444", fontSize: 9, position: "top" }} />
-                        <ReferenceLine y={80} stroke={COLORS.indigo} strokeDasharray="3 3" label={{ value: "CL (80°C)", fill: COLORS.indigo, fontSize: 9, position: "right" }} />
-                        <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "LCL (40°C)", fill: "#ef4444", fontSize: 9, position: "bottom" }} />
-
-                        <Line type="monotone" dataKey="delta" name="Thermal Loss ΔT (°C)" stroke={COLORS.orange} strokeWidth={2.5} dot={{ r: 3 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-slate-400 text-xs flex items-center justify-center h-full">Insufficient temperature records in DB.</div>
-                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 15, right: 15, bottom: 15, left: -25 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                      <XAxis type="number" dataKey="x" name="Yield" unit="%" stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[40, 80]} label={{ value: 'Low Yield ➔ High Yield', position: 'insideBottom', offset: -10, style: { fontSize: 8, fill: '#64748b', fontWeight: 'bold' } }} />
+                      <YAxis type="number" dataKey="y" name="QA Tests" stroke="#94a3b8" tick={{ fontSize: 10 }} domain={[0, 20]} label={{ value: 'QA Complexity (tests)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 8, fill: '#64748b', fontWeight: 'bold' } }} />
+                      <ZAxis type="number" dataKey="z" range={[60, 450]} />
+                      <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const p = payload[0].payload;
+                          return (
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xl text-xs space-y-0.5">
+                              <p className="font-bold text-slate-850 dark:text-slate-200">{p.product}</p>
+                              <p className="text-slate-500 font-mono">Yield: {p.x}%</p>
+                              <p className="text-slate-500 font-mono">QA Tests: {p.y}</p>
+                              <p className="text-slate-500 font-mono">Consumables: {p.usage}</p>
+                              <p className="text-orange-500 font-bold font-mono">Risk Level: {p.overallRisk}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }} />
+                      <Scatter name="Risk Matrix" data={riskMatrixData}>
+                        {riskMatrixData.map((entry, idx) => {
+                          const fill = entry.overallRisk === "HIGH" ? COLORS.rose : entry.overallRisk === "MED" ? COLORS.amber : COLORS.teal;
+                          return <Cell key={idx} fill={fill} />;
+                        })}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
                 </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Row 6 — Foundry Process Flow */}
+          <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-fade-in">
+            <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Foundry Process Flow</h3>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold">Lifecycle parameters per fabrication stage</span>
+            </div>
+
+            {/* Stepper Indicators */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-slate-100 dark:border-slate-850 pb-6">
+              {PROCESS_FLOW_STEPS.map((step, idx) => {
+                const isActive = activeFlowStep === idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveFlowStep(idx)}
+                    className={`flex-1 min-w-[120px] p-3.5 rounded-xl border text-left transition-all relative ${
+                      isActive 
+                        ? 'border-[#f97316] bg-orange-500/10 text-slate-900 dark:text-white shadow shadow-orange-500/10' 
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-950/25 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                        isActive ? 'bg-[#f97316] text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-650'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <strong className="text-xs uppercase tracking-wide truncate">{step.stage}</strong>
+                    </div>
+                    {isActive && (
+                      <span className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-[#f97316] rotate-45 hidden lg:block" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected Step Detail Panel */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-900/60 rounded-2xl animate-fade-in flex flex-col md:flex-row gap-6 justify-between">
+              <div className="space-y-4 max-w-2xl text-xs">
+                <div>
+                  <h4 className="text-[#f97316] uppercase font-bold text-[10px] tracking-wide mb-1">Current Stage Details</h4>
+                  <strong className="text-slate-800 dark:text-white text-base">{PROCESS_FLOW_STEPS[activeFlowStep].stage}</strong>
+                  <p className="text-slate-555 dark:text-slate-400 mt-1 leading-relaxed">{PROCESS_FLOW_STEPS[activeFlowStep].description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-slate-400 font-bold uppercase text-[9px] block mb-1">Materials Input</span>
+                    <p className="text-slate-700 dark:text-slate-300 font-semibold">{PROCESS_FLOW_STEPS[activeFlowStep].materials}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold uppercase text-[9px] block mb-1">Estimated Stage Cost</span>
+                    <p className="text-slate-700 dark:text-slate-300 font-semibold">{PROCESS_FLOW_STEPS[activeFlowStep].costEstimate}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:w-64 flex flex-col justify-center items-start border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 pt-4 md:pt-0 md:pl-6 text-xs">
+                <span className="text-slate-400 font-bold uppercase text-[9px] block mb-2">Stage Risk Factor</span>
+                <span className={`inline-block px-3 py-1.5 rounded-xl font-bold tracking-wide uppercase text-[10px] ${
+                  PROCESS_FLOW_STEPS[activeFlowStep].risk.startsWith("HIGH") 
+                    ? "bg-rose-500/20 border border-rose-500/35 text-rose-600 dark:text-rose-455" 
+                    : PROCESS_FLOW_STEPS[activeFlowStep].risk.startsWith("MED")
+                      ? "bg-amber-500/20 border border-amber-500/35 text-amber-600 dark:text-amber-455"
+                      : "bg-emerald-500/20 border border-emerald-500/35 text-emerald-600 dark:text-emerald-455"
+                }`}>
+                  {PROCESS_FLOW_STEPS[activeFlowStep].risk.split(' ')[0]}
+                </span>
+                <p className="text-slate-455 dark:text-slate-500 mt-2 text-[10px] leading-relaxed">
+                  {PROCESS_FLOW_STEPS[activeFlowStep].risk}
+                </p>
               </div>
             </div>
 

@@ -1,13 +1,11 @@
 import os
 import json
 import requests
-from core.config import settings
+from ml_pipeline.key_manager import key_manager
 
 class FieldMapper:
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            print("WARNING: GEMINI_API_KEY environment variable is not set!")
+        pass
 
     def _flatten_ocr_data(self, raw_data: dict) -> str:
         """Converts the raw OCR bounding box data into a readable text dump."""
@@ -91,22 +89,55 @@ class FieldMapper:
             "error": "AI Inference failed.", "raw_text_dump": combined_ocr_text
         }
 
-        if not self.api_key:
-            fallback_data["error"] = "Missing GEMINI_API_KEY"
-            return fallback_data
-
-        try:
-            # DIRECT REST API CALL (Bypasses Google SDK & Protobuf conflicts completely)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
+        max_key_attempts = 5
+        response = None
+        
+        for key_attempt in range(max_key_attempts):
+            current_key = key_manager.get_api_key()
+            if not current_key:
+                fallback_data["error"] = "Missing GEMINI_API_KEY"
+                return fallback_data
+                
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={current_key}"
             headers = {'Content-Type': 'application/json'}
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"responseMimeType": "application/json"}
             }
             
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            
+            try:
+                response = requests.post(url, headers=headers, json=payload)
+                
+                # Check for rate limit or exhaustion
+                is_exhausted = (
+                    response is not None and (
+                        response.status_code == 429 or
+                        (response.status_code in [400, 403] and any(term in response.text.lower() for term in ["quota", "limit", "exhausted", "key"]))
+                    )
+                )
+                
+                if is_exhausted:
+                    print(f"[WARNING] API key exhausted/rate limited. Switching to next key. (Attempt {key_attempt + 1}/{max_key_attempts})")
+                    key_manager.handle_exhaustion(current_key)
+                    continue
+                    
+                response.raise_for_status()
+                
+                # Success - break outer loop
+                break
+                
+            except Exception as e:
+                print(f"AI Mapping Error on attempt {key_attempt + 1}: {e}")
+                if 'response' in locals() and response is not None:
+                    print(f"API Response: {response.text}")
+                key_manager.handle_exhaustion(current_key)
+                continue
+                
+        try:
+            if response is None or response.status_code != 200:
+                fallback_data["error"] = "All API keys failed or were exhausted."
+                return fallback_data
+                
             # Parse the Gemini JSON response
             result = response.json()
             ai_text_response = result['candidates'][0]['content']['parts'][0]['text']
@@ -115,9 +146,6 @@ class FieldMapper:
             structured_data["raw_text_dump"] = combined_ocr_text 
             
             return structured_data
-            
         except Exception as e:
-            print(f"AI Mapping Error: {e}")
-            if 'response' in locals():
-                print(f"API Response: {response.text}")
+            fallback_data["error"] = str(e)
             return fallback_data
