@@ -125,14 +125,14 @@ const PROCESS_FLOW_STEPS = [
     stage: "Moulding",
     description: "Creating the sand mould top & bottom sections.",
     materials: "Silica Sand, Chromite Sand, Sinotherm Binder, Activator Catalyst",
-    costEstimate: "Silica: $0.15/kg, Chromite: $0.65/kg, Binder: $1.80/kg. Avg: ~$850 / heat.",
+    costEstimate: "Silica: $0.15/kg, Chromite: $0.65/kg, Binder: $1.80/kg. Avg: ~$850 / mould.",
     risk: "MED - Sand density and binder ratios must prevent expansion defects."
   },
   {
     stage: "Core Making",
     description: "Shaping internal cavities and passages using cores.",
     materials: "Sinotherm Binder, Silica Sand, Core Sleeves, Venting Tubes",
-    costEstimate: "Resin binder systems + sand: ~$320 per heat.",
+    costEstimate: "Resin binder systems + sand: ~$320 per mould.",
     risk: "LOW - Core gas venting must be sufficient to prevent blowholes."
   },
   {
@@ -161,7 +161,7 @@ const PROCESS_FLOW_STEPS = [
     description: "Destructive and non-destructive testing of integral test bars.",
     materials: "Test coupons, NDT RT radiographic plates",
     costEstimate: "Radiographic testing & tensile coupon milling: ~$650.",
-    risk: "HIGH - Yield loss if tensile bars fail specs, requiring full heat scrap."
+    risk: "HIGH - Yield loss if tensile bars fail specs, requiring full mould scrap."
   }
 ];
 
@@ -1502,7 +1502,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Moulding Production Plan</h2>
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-xs mb-8 leading-relaxed">
-                  Drop a scanned PDF or photograph of the Production Plan. The parsing engine extracts metadata, product specifications, sand & consumable quantities, and quality check statuses.
+                  Drop a scanned PDF or photograph of the Moulding Production Plan. The moulding document parser engine extracts metadata, product specifications, sand & consumable quantities, and quality check statuses.
                 </p>
                 
                 {/* Drag Drop Area */}
@@ -1525,7 +1525,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                     <UploadCloud size={28} className="text-[#f97316]" />
                   </div>
                   <p className="text-slate-750 dark:text-slate-200 text-sm font-bold mb-1">
-                    {file ? file.name : "Drag & drop Production Plan"}
+                    {file ? file.name : "Drag & drop Moulding Production Plan"}
                   </p>
                   <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider">
                     PDF - TIFF - JPG up to 40 MB
@@ -1560,8 +1560,8 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                 <div className="absolute inset-0 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-[#f97316] animate-spin" />
               </div>
               <div>
-                <h4 className="text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">Neural Engine Processing</h4>
-                <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1 max-w-[280px]">Running Optical Character Recognition, layout parsing and aligning structural fields...</p>
+                <h4 className="text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">Moulding Parser Engine Processing</h4>
+                <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1 max-w-[280px]">Running Optical Character Recognition, layout parsing and aligning moulding structural fields...</p>
               </div>
             </div>
           )}
@@ -1590,10 +1590,10 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5 gap-4">
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                {result?.document_metadata?.heat_no || result?.document_info?.heat_no ? `Cycle Report: ${result?.document_metadata?.heat_no || result?.document_info?.heat_no}` : "Heat Treatment Cycle Report"}
+                {result?.document_metadata?.heat_no || result?.document_info?.heat_no ? `Moulding Report: ${result?.document_metadata?.heat_no || result?.document_info?.heat_no}` : "Moulding Document Parser Engine"}
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-                Structured extraction of the cycle report, aligned to backend schema blocks A through E.
+                Structured extraction of the moulding document, aligned to backend schema blocks A through E.
               </p>
             </div>
             
@@ -1638,9 +1638,9 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
           {!result ? (
             <div className="py-24 text-center bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center p-8">
               <FileText size={48} className="text-slate-350 dark:text-slate-700 mb-4" />
-              <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold uppercase tracking-wider">No Cycle Log Selected</h3>
+              <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold uppercase tracking-wider">No Moulding Document Selected</h3>
               <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 max-w-[280px] leading-relaxed">
-                Please upload a document in the Ingest tab or click any record in the Historical Logs tab to review its digitized schema blocks here.
+                Please upload a document in the Ingest tab or click any record in the Historical Logs tab to review its digitized moulding blocks here.
               </p>
               <button
                 onClick={() => setActiveTab('ingest')}
@@ -1662,7 +1662,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                     <div className="flex items-center gap-2">
                       <FileText size={16} className="text-[#f97316]" />
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Document Pages: <strong className="text-[#f97316] font-mono">{pagesList.length} parsed {totalPages > pagesList.length ? `(out of ${totalPages})` : ''}</strong>
+                        Moulding Pages: <strong className="text-[#f97316] font-mono">{pagesList.length} parsed {totalPages > pagesList.length ? `(out of ${totalPages})` : ''}</strong>
                       </span>
                     </div>
                     {pagesList.length > 1 && (
@@ -2043,9 +2043,9 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
           
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
             <div>
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Operational Analytics</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Moulding Operational Analytics</h2>
               <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-                Foundry-specific key performance indicators, material yields, quality checklists, and production risks.
+                Moulding-specific key performance indicators, material yields, quality checklists, and moulding risks.
               </p>
             </div>
             
@@ -2064,25 +2064,25 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             
             <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
               <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><Database size={32} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Heats</span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Moulds</span>
               <strong className="text-slate-900 dark:text-white text-2xl font-mono tracking-tight font-extrabold">{kpiStats.totalHeats}</strong>
             </div>
 
             <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
               <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><Scale size={32} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Tonnage</span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Total Mould Tonnage</span>
               <strong className="text-[#f97316] text-2xl font-mono tracking-tight font-extrabold">{kpiStats.totalTonnage} t</strong>
             </div>
 
             <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
               <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><TrendingUp size={32} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg Yield %</span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg Moulding Yield %</span>
               <strong className="text-slate-900 dark:text-white text-2xl font-mono tracking-tight font-extrabold">{kpiStats.avgYield}%</strong>
             </div>
 
             <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
               <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><ShieldCheck size={32} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg QA Score</span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">Avg Moulding QA Score</span>
               <strong className="text-[#f97316] text-2xl font-mono tracking-tight font-extrabold">{kpiStats.avgQaScore} tests</strong>
             </div>
 
@@ -2094,7 +2094,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
 
             <div className="bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
               <span className="absolute right-3 bottom-3 text-slate-100 dark:text-slate-800/10 font-extrabold select-none"><AlertCircle size={32} className="stroke-[1]" /></span>
-              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">High Risk Jobs</span>
+              <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold tracking-wider block mb-1">High Risk Moulds</span>
               <strong className="text-rose-500 text-2xl font-mono tracking-tight font-extrabold">{kpiStats.highRiskJobs}</strong>
             </div>
 
@@ -2107,7 +2107,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Yield Efficiency</h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Yield Efficiency</h3>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Overall vs. Target</span>
                 </div>
                 
@@ -2165,8 +2165,8 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Yield Ranking</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Yield % by individual Heat</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Yield Ranking</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Yield % by Individual Mould</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
@@ -2196,7 +2196,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Consumable Dominance</h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Consumable Dominance</h3>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Material weight proportion</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
@@ -2216,8 +2216,8 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Material Intensity</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Consumable sand (kg) / Casting (kg)</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Material Intensity</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Consumable sand (kg) / Moulding (kg)</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
@@ -2242,7 +2242,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">QA Requirement Distribution</h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding QA Requirement Distribution</h3>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Test Specification Presence %</span>
                 </div>
                 <div className="h-[280px] w-full mt-4 flex items-center justify-center">
@@ -2263,7 +2263,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">QA Burden Index</h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding QA Burden Index</h3>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Quality complexity tiering</span>
                 </div>
                 
@@ -2332,14 +2332,14 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Operational Risk status</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Yield, QA & Materials status indicator</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Operational Risk Status</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Moulding Yield, QA & Materials status indicator</span>
                 </div>
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full text-xs font-semibold text-left">
                     <thead className="bg-slate-50/50 dark:bg-slate-950/40 text-slate-450 uppercase text-[9px] tracking-wider sticky top-0 border-b border-slate-100 dark:border-slate-800">
                       <tr>
-                        <th className="px-4 py-2.5">Heat Job</th>
+                        <th className="px-4 py-2.5">Mould Job</th>
                         <th className="px-4 py-2.5 text-center">Yield</th>
                         <th className="px-4 py-2.5 text-center">QA</th>
                         <th className="px-4 py-2.5 text-center">Material</th>
@@ -2383,8 +2383,8 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Production Risk Matrix</h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Bubble: Consumables, X: Yield %, Y: QA Specs</span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Production Risk Matrix</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Bubble: Moulding Consumables, X: Yield %, Y: QA Specs</span>
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
@@ -2425,8 +2425,8 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
           {/* Row 6 — Foundry Process Flow */}
           <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-fade-in">
             <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Foundry Process Flow</h3>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Lifecycle parameters per fabrication stage</span>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moulding Process Flow</h3>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold">Lifecycle parameters per moulding stage</span>
             </div>
 
             {/* Stepper Indicators */}
@@ -2508,9 +2508,9 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5 gap-4">
             <div>
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Historical Cycle Archive</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Historical Moulding Archive</h2>
               <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-                Master log of every saved cycle record. Export the full database set as a multi-sheet Excel file.
+                Master log of every saved moulding plan. Export the full database set as a multi-sheet Excel file.
               </p>
             </div>
             
@@ -2534,7 +2534,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
             <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Database size={16} className="text-[#f97316]" />
-                <span className="text-xs font-bold text-slate-855 dark:text-slate-200 uppercase tracking-wider">Saved Cycles database</span>
+                <span className="text-xs font-bold text-slate-855 dark:text-slate-200 uppercase tracking-wider">Saved Moulds Database</span>
                 <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400 px-2 py-0.5 rounded-full font-mono font-bold">
                   {filteredHistoryRows.length} matches
                 </span>
@@ -2543,7 +2543,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
               <div className="relative w-full sm:w-64">
                 <input
                   type="text"
-                  placeholder="Search heat numbers, dates..."
+                  placeholder="Search mould numbers, dates..."
                   value={historySearchQuery}
                   onChange={(e) => { setHistorySearchQuery(e.target.value); setHistoryPage(1); }}
                   className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs px-3.5 py-2 pl-9 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-[#f97316] w-full font-semibold transition-all"
@@ -2559,11 +2559,11 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
               <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
                 <thead className="bg-slate-50/50 dark:bg-slate-950/30 text-slate-400 dark:text-slate-550 uppercase font-bold text-[9px] tracking-wider">
                   <tr>
-                    <th className="px-6 py-4 text-left">Cycle ID</th>
+                    <th className="px-6 py-4 text-left">Moulding ID</th>
                     <th className="px-6 py-4 text-left">Date</th>
-                    <th className="px-6 py-4 text-left">Capacity / Furnace</th>
+                    <th className="px-6 py-4 text-left">Moulding Capacity</th>
                     <th className="px-6 py-4 text-left">Grade</th>
-                    <th className="px-6 py-4 text-left">Heats / Castings</th>
+                    <th className="px-6 py-4 text-left">Moulds / Castings</th>
                     <th className="px-6 py-4 text-left">Tonnage (T)</th>
                     <th className="px-6 py-4 text-left">Status</th>
                     <th className="px-6 py-4 text-center">Action</th>
@@ -2574,7 +2574,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                         <span className="w-5 h-5 border-2 border-[#f97316] border-t-transparent rounded-full animate-spin inline-block mr-2" />
-                        Loading cycle records from Atlas cluster...
+                        Loading moulding records from database...
                       </td>
                     </tr>
                   ) : paginatedHistoryRows.length > 0 ? (

@@ -43,7 +43,7 @@ export default function App() {
     {
       id: 'ingest',
       label: 'Ingest & Upload',
-      sub: 'Stage cycle reports',
+      sub: 'Stage moulding plans',
       icon: UploadCloud
     },
     {
@@ -61,7 +61,7 @@ export default function App() {
     {
       id: 'logs',
       label: 'Historical Logs',
-      sub: 'Saved cycle archive',
+      sub: 'Saved moulding archive',
       icon: History
     }
   ];

@@ -15,7 +15,7 @@ export const documentApi = {
     processDocument: async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         return await apiClient.post(`${API_PREFIX}/process`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }).then(res => res.data);
@@ -23,7 +23,7 @@ export const documentApi = {
 
     processNextPage: async (page, filename, taskId) => {
         // Use params to automatically encode special characters in filename
-        return await apiClient.post('/api/v1/process', null, {
+        return await apiClient.post(`${API_PREFIX}/process`, null, {
             params: { page, filename, task_id: taskId }
         }).then(res => res.data);
     },
