@@ -1499,7 +1499,7 @@ export default function Dashboard({ activeTab, setActiveTab, activeDocument, set
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <UploadCloud className="text-[#f97316]" size={24} />
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Moulding/Pouring Production Plan</h2>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Stage a Moulding Production Plan</h2>
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-xs mb-8 leading-relaxed">
                   Drop a scanned PDF or photograph of the Production Plan. The parsing engine extracts metadata, product specifications, sand & consumable quantities, and quality check statuses.
