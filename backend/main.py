@@ -28,7 +28,7 @@ app = FastAPI(
 # Place this before everything else to ensure OPTIONS requests are handled
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://your-app-name.vercel.app"], 
+    allow_origins=["http://localhost:5173", "https://moulding-two.vercel.app"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
